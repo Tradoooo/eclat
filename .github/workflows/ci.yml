@@ -1,0 +1,63 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  host:
+    name: core C11 (tests + ASan/UBSan)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: Dépôt requis (police licence + sources)
+        run: |
+          test -s LICENSE
+          test -s README.md
+          test -s CONTRACT.md
+          test -n "$(find core -name '*.c' -o -name '*.h' | head -1)"
+      - name: make core
+        run: make core
+      - name: make test
+        run: make test
+      - name: make test-san
+        run: make test-san
+      - name: Garde de taille
+        run: make size-check
+
+  python:
+    name: jumeau Python + différentiel
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: make core
+        run: make core
+      - name: python-tests
+        run: make python-tests
+      - name: différentiel C ↔ Python
+        run: make differential
+
+  spdx:
+    name: garde SPDX
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: spdx-guard
+        run: make spdx

@@ -1,0 +1,26 @@
+# artefacts de build
+/build/
+*.o
+*.a
+*.so
+*.gcda
+*.gcno
+# core dumps (core.<pid>), pas le répertoire source core/
+core.[0-9]*
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# fuzz / corpus
+fuzz/corpus/
+fuzz/artifacts/
+
+# éditeurs
+.vscode/
+.idea/
+*.swp
+
+# artefacts temporaires
+*.wasm.log
