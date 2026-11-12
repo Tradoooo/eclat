@@ -38,7 +38,7 @@ Sur un noyau monolithique seule la première existe ; leur superposition est l'a
 - [x] Empreinte vérifiée avant chargement : un octet modifié refuse le module (ECL-07), vecteurs NIST recoupés avec `sha256sum`.
 - [x] Budget CPU appliqué : le module gourmand qui boucle sans fin est **tué** (ECL-06).
 - [x] Amont : recette `qnx-ports` conforme à l'arbre réel, lettre d'accompagnement, notes de portage, versions épinglées et empreinte wasi-sdk vérifiée.
-- [x] Preuves d'absence de port Wasm existant ([`docs/E5-preuves-absence.md`](docs/E5-preuves-absence.md), essai **E5**).
+- [x] Vérifications d'absence de port Wasm dans l'écosystème QNX publié ([`docs/E5-preuves-absence.md`](docs/E5-preuves-absence.md)) — **et découverte d'une PR amont ouverte** qui change la stratégie, voir ci-dessous.
 
 **SDP QNX 8.0 installé le 12/11 (`~/qnx800`, `qcc` 12.2.0) — l'essai bloquant E2 est tranché :**
 
@@ -111,6 +111,21 @@ make spdx            # en-tête SPDX sur chaque source
 Voir [`CONTRIBUTING.md`](CONTRIBUTING.md) pour les règles non négociables et les lots restants, et
 [`docs/100-idees-aller-plus-loin.md`](docs/100-idees-aller-plus-loin.md) pour les 100 pistes
 d'amélioration classées (dont 89 gratuites).
+
+## ⚠ Un port QNX de WAMR est déjà en cours en amont
+
+La [PR #5200 « Add QNX 8.0 platform support »](https://github.com/bytecodealliance/wasm-micro-runtime/pull/5200)
+est ouverte depuis le 2026-11-04, `MERGEABLE`, et accueillie par un mainteneur. Elle fait ce que
+nous préparions, **mieux** (elle exploite `MAP_BELOW` au lieu de renoncer à `MAP_32BIT`, et elle a
+réellement tourné sur QNX 8.0 sous QEMU : 133/137 tests unitaires amont).
+
+**Nous n'ouvrons donc pas de demande de fusion sur le portage** — ce serait un doublon de moindre
+qualité. Nos deux correctifs restent dans `upstream/wamr/patches/` comme trace de la vérification
+indépendante qui nous a permis de compiler et lier WAMR pour QNX sur cette machine.
+
+Ce que ça change pour le projet, et les pistes de contribution qui restent libres :
+[`upstream/README.md`](upstream/README.md). En une ligne : l'apport d'Éclat n'est **pas** le
+portage, c'est le **courtier de capacités** — et celui-là, personne ne le propose.
 
 ## Démonstration immédiate
 

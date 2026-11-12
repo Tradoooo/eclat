@@ -1,5 +1,51 @@
 # DECISIONS — journal des décisions de conception
 
+## 2026-11-12 — Pas de demande de fusion amont : le portage QNX existe déjà (PR #5200)
+
+**Décision.** Aucune pull request ne sera ouverte sur `bytecodealliance/wasm-micro-runtime` pour
+le portage QNX. Les deux correctifs écrits et vérifiés ce jour restent dans
+`upstream/wamr/patches/` comme trace de la vérification indépendante, et la lettre
+d'accompagnement est marquée **périmée, ne pas soumettre**.
+
+**Pourquoi.** Recherche de doublons avant publication : la
+[PR #5200 « Add QNX 8.0 platform support »](https://github.com/bytecodealliance/wasm-micro-runtime/pull/5200)
+est ouverte depuis le **2026-11-04** par `altinayselman`, état `OPEN` / `MERGEABLE`, et le
+mainteneur `woodsmc` l'a accueillie le 2026-11-10. Elle ajoute `core/shared/platform/qnx/` et
+`product-mini/platforms/qnx/` (9 fichiers, +493/−2) et couvre les deux écarts que nous avions
+trouvés — avec de **meilleures** solutions :
+
+- `MAP_32BIT` : nous y renoncions (`#if defined(MAP_32BIT)`) ; eux exploitent `MAP_BELOW` de QNX,
+  dont le hint est une borne haute, et **conservent** l'allocation sous les 2 Gio pour le code AOT.
+- `-ldl` / `-lpthread` : nous mettions un spécial-cas QNX dans le CMakeLists de
+  `platforms/linux` ; eux créent un vrai `product-mini/platforms/qnx/` avec
+  `link_libraries(socket m)`.
+
+Ils traitent en plus trois écarts que nous n'avions pas rencontrés (pile de thread via `__tls()`
+faute de `pthread_getattr_np()`, `mprotect` de longueur nulle renvoyant `EINVAL`, `%p` sans
+préfixe `0x`), et surtout **ils ont exécuté sur QNX 8.0** sous QEMU : 133 des 137 tests unitaires
+amont passent. Nous n'avons rien exécuté sur cible.
+
+**Ce que ça change pour Éclat.** La catégorie *Open-Source Contribution & Ports* demande l'URL
+d'une contribution. Le portage n'est plus la nôtre. Trois pistes réellement libres :
+
+1. **`qnx-ports/build-files`** : aucune entrée `wamr` (vérifié). Notre recette et notre
+   `qnx.nto.toolchain.cmake` sont écrits et notre chaîne `tools/build-qnx.sh` prouve qu'ils
+   fonctionnent — c'est une contribution à un **autre** dépôt amont, non prise.
+2. **Le harnais de tests amont sur QNX** : l'auteur de #5200 écrit que les adaptations nécessaires
+   (`/proc/self/exefile` au lieu de `/proc/self/exe`, ne pas passer `NULL` à `%s`) « are not part
+   of this PR » et « **can be sent separately if wanted** ». Offerte, petite, non prise.
+3. **Le courtier de capacités** : l'apport réel d'Éclat, indépendant du portage, que personne ne
+   propose. C'est désormais lui, et pas le portage, qui porte l'argument du projet.
+
+**Leçon.** Deux minutes de recherche de doublons ont évité de proposer publiquement, à un projet
+de 6 200 étoiles, une solution inférieure à celle déjà en revue. La vérification des doublons
+devient une étape obligatoire avant toute contribution amont — elle est désormais écrite ici.
+
+**Piège d'outillage.** L'API `search/issues` de GitHub renvoie `422 Validation Failed` sur ce
+dépôt (« cannot be searched… ») alors qu'il est public et que `has_issues` vaut true. Contournement
+qui fonctionne : `gh pr list --state all --limit 100 --json number,title` puis filtrage local.
+Ne pas conclure « aucun doublon » sur la seule foi d'une recherche en erreur.
+
 ## 2026-11-12 — QNX n'a ni `libpthread` ni `libdl` : deuxième correctif amont
 
 **Décision.** `patches/0002-product-mini-linux-no-dl-pthread-on-qnx.patch` retire `-ldl` et

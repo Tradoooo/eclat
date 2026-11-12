@@ -1,5 +1,50 @@
 # E5 — Preuves de l'absence d'un port WebAssembly pour QNX
 
+> ## ⚠ MISE À JOUR MAJEURE — 12 novembre 2026, 14 h 45
+>
+> **Un port WAMR pour QNX 8.0 existe déjà, en cours d'intégration amont.**
+>
+> [PR #5200 « Add QNX 8.0 platform support »](https://github.com/bytecodealliance/wasm-micro-runtime/pull/5200),
+> ouverte le **2026-11-04** par `altinayselman` (Selman Altınay), état **OPEN / MERGEABLE**,
+> `reviewDecision: REVIEW_REQUIRED`, et un commentaire du mainteneur `woodsmc` le 2026-11-10 :
+> *« Awesome great to see a port for QNX. »*
+>
+> Elle ajoute `core/shared/platform/qnx/` et `product-mini/platforms/qnx/`, et traite — mieux que
+> nous — les écarts que nous avions trouvés :
+>
+> | Écart | Notre correctif | Le leur |
+> |---|---|---|
+> | `MAP_32BIT` absent | `#if defined(MAP_32BIT)` : on **renonce** à l'optimisation | `MAP_BELOW` de QNX (le hint devient une borne haute) : l'optimisation est **préservée** |
+> | `-ldl` / `-lpthread` | spécial-cas QNX dans le CMakeLists de `platforms/linux` | un vrai `product-mini/platforms/qnx/` + `link_libraries(socket m)` |
+> | `struct dirent` sans `d_type` | non traité (fichier hors de notre configuration) | type de fichier via `fstatat(dirfd(), …, AT_SYMLINK_NOFOLLOW)` |
+> | pile du thread | non rencontré | `__tls()->__stackaddr/__stacksize`, QNX n'ayant pas `pthread_getattr_np()` |
+> | `mprotect(addr, 0, …)` → `EINVAL` | non rencontré | retour anticipé si longueur nulle |
+> | `%p` sans préfixe `0x` | non rencontré | corrigé dans `libc_builtin_wrapper.c` |
+>
+> Surtout : **eux l'ont exécuté sur QNX 8.0** (image construite avec `mkqnximage --type=qemu`,
+> sous QEMU/KVM), avec interpréteur, interpréteur rapide et AOT, et **133 tests unitaires amont
+> sur 137 passent** (les 4 échecs viennent d'un VM de 1 Gio face à une mémoire linéaire de 4 Gio,
+> QNX ne sur-allouant pas). Nous n'avons rien exécuté sur cible.
+>
+> **Conséquences assumées :**
+> 1. **Aucune demande de fusion ne sera ouverte** sur ces deux correctifs : ce serait un doublon,
+>    et leurs solutions sont supérieures. Nos `patches/0001` et `patches/0002` restent dans le
+>    dépôt comme trace de la vérification indépendante, pas comme contribution.
+> 2. La section « le filon est réel » ci-dessous reste **vraie pour l'écosystème QNX publié**
+>    (aucun port dans `qnx-ports`, aucun dépôt), mais **fausse comme argument de nouveauté** :
+>    quelqu'un comble le trou en ce moment, et l'a signalé avant nous.
+> 3. La contribution amont d'Éclat doit changer d'objet. Pistes réelles, non prises :
+>    - l'auteur de #5200 **propose explicitement** un envoi séparé pour les adaptations du harnais
+>      de tests (`/proc/self/exefile` au lieu de `/proc/self/exe`, et ne pas passer `NULL` à `%s`) ;
+>    - une recette `qnx-ports/build-files` pour WAMR : ce dépôt-là n'a toujours **aucune** entrée
+>      Wasm, et notre recette + notre fichier d'outillage sont écrits et vérifiés ;
+>    - le **courtier de capacités**, qui est l'apport réel d'Éclat et que personne ne propose.
+>
+> Ce qui suit est conservé **tel quel**, daté, parce que c'est ce qui a été vérifié et quand —
+> y compris l'affirmation devenue incomplète. Ne pas le citer sans l'encadré ci-dessus.
+
+---
+
 L'essai de faisabilité **E5** du cahier des charges (§10) est bloquant : s'il existe déjà un port
 WebAssembly pour QNX, le sujet tombe. Ce document consigne ce qui a été **vérifié**, comment, et
 ce qui ne l'est **pas** encore. Aucune affirmation n'est avancée sans sa source.

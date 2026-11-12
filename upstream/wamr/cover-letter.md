@@ -1,9 +1,25 @@
 # Cover letter — add a QNX 8.0 platform layer to WAMR
 
-> **Statut de cette lettre : brouillon.** Elle n'a pas été soumise. La couche `platform/qnx/`
-> n'existe pas encore dans ce dépôt parce que le SDP QNX 8.0 n'est pas installé ; nous
-> n'ouvrirons pas de PR contenant du code non compilé. Le texte ci-dessous est ce qui
-> accompagnera la PR une fois la compilation effective obtenue.
+> ## ⚠ NE PAS SOUMETTRE — lettre périmée, conservée pour trace (12/11/2026, 14 h 45)
+>
+> Cette lettre pose la question : *« Is there an in-flight QNX effort we have not found? »*
+> **La réponse est oui**, et nous l'avons trouvée après rédaction :
+> [PR #5200 « Add QNX 8.0 platform support »](https://github.com/bytecodealliance/wasm-micro-runtime/pull/5200),
+> ouverte le 2026-11-04 par `altinayselman`, `OPEN` / `MERGEABLE`, accueillie par le mainteneur
+> `woodsmc` le 2026-11-10 (*« Awesome great to see a port for QNX. »*). Elle couvre
+> `core/shared/platform/qnx/` + `product-mini/platforms/qnx/` et a été **exécutée sur QNX 8.0**
+> sous QEMU (133/137 tests unitaires amont), ce que nous n'avons pas fait.
+>
+> Nos deux correctifs (`patches/0001` sur `MAP_32BIT`, `patches/0002` sur `-ldl`/`-lpthread`)
+> résolvent des problèmes qu'elle résout aussi, **mieux** : elle exploite `MAP_BELOW` de QNX pour
+> conserver l'allocation sous les 2 Gio au lieu d'y renoncer, et elle passe par un vrai
+> `product-mini/platforms/qnx/` plutôt que par un spécial-cas dans le CMakeLists de Linux.
+>
+> **Ouvrir cette PR serait un doublon de moindre qualité. Elle ne sera pas soumise.**
+> Le texte ci-dessous n'est conservé que parce qu'il documente ce que nous avions vérifié, et
+> l'erreur que nous avons évitée de justesse en cherchant les doublons avant de publier.
+> Voir `docs/E5-preuves-absence.md` pour la mise à jour complète et les pistes de contribution
+> réellement libres.
 
 ---
 
