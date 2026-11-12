@@ -1,74 +1,131 @@
-# Port WAMR pour QNX 8.0 — recette `qnx-ports/build-files`
+# wamr [![Build](https://github.com/qnx-ports/build-files/actions/workflows/wamr.yml/badge.svg)](https://github.com/qnx-ports/build-files/actions/workflows/wamr.yml)
 
-Recette destinée à être déposée dans `ports/wamr/` de
-[qnx-ports/build-files](https://github.com/qnx-ports/build-files), pour que l'équipe des ports
-puisse la consommer **sans adaptation**.
+**WebAssembly Micro Runtime (WAMR) for QNX 8.0.**
 
-## État honnête
+This port builds the [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime) interpreter
+(`iwasm`) and the `libiwasm.a` runtime library for `nto x86_64` and `nto aarch64le`.
 
-**Cette recette n'a jamais été exécutée.** Deux raisons, toutes deux documentées :
+## Dependency on the upstream QNX platform support
 
-1. Le SDP QNX 8.0 n'est pas installé sur la machine de développement (licence QNX Everywhere
-   gratuite mais action humaine requise).
-2. WAMR amont ne contient **ni** `core/shared/platform/qnx` **ni** `product-mini/platforms/qnx`
-   (vérifié le 2026-11-12, voir [`docs/E5-preuves-absence.md`](../../docs/E5-preuves-absence.md)).
-   Créer cette cible est l'objet même de la contribution.
+**WAMR has no QNX platform layer upstream yet.** The `core/shared/platform/qnx/` and
+`product-mini/platforms/qnx/` directories this recipe builds do not exist in the
+`bytecodealliance/wasm-micro-runtime` tree today; they are proposed by
 
-Les blocs non vérifiés sont marqués `HYPOTHÈSE` dans `common.mk`.
+> [bytecodealliance/wasm-micro-runtime#5200 — "Add QNX 8.0 platform support"](https://github.com/bytecodealliance/wasm-micro-runtime/pull/5200)
 
-## Ce qui est vérifié
-
-La **structure** de la recette est conforme à l'arbre réel des ports, lue sur `ports/zlib`
-le 2026-11-12 :
-
-```
-ports/wamr/
-├── Makefile                    → include recurse.mk
-├── common.mk                   → qconfig.mk, qmacros.mk, qtargets.mk, NAME, PREFIX, CFLAGS
-├── README.md
-├── qnx.nto.toolchain.cmake     → à réutiliser depuis l'arbre des ports (non recopié ici)
-├── nto-aarch64-le/Makefile     → include ../common.mk
-└── nto-x86_64-o/Makefile       → include ../common.mk
-```
-
-Les noms d'options CMake de WAMR (`WAMR_BUILD_INTERP`, `WAMR_BUILD_AOT`,
-`WAMR_BUILD_LIBC_BUILTIN`, `WAMR_BUILD_LIBC_WASI`, `WAMR_BUILD_FAST_INTERP`,
-`WAMR_BUILD_THREAD_MGR`) sont vérifiés dans `doc/build_wamr.md` amont.
-
-## Installation dans l'arbre des ports
+(open, mergeable, and the only way this port can exist). Until that pull request is merged,
+`QNX_PROJECT_ROOT` must point at a WAMR tree that **already contains the QNX platform support** —
+for example the branch of the pull request:
 
 ```bash
-git clone https://github.com/qnx-ports/build-files
-cd build-files/ports
-mkdir wamr
-# copier le contenu de ce dossier dans ports/wamr/, sauf ce README
-cp /chemin/vers/eclat/upstream/qnx-ports/{Makefile,common.mk} wamr/
-cp -r /chemin/vers/eclat/upstream/qnx-ports/nto-* wamr/
-# récupérer le fichier d'outillage CMake depuis un port existant (identique d'un port à l'autre)
-cp zlib/qnx.nto.toolchain.cmake wamr/
+git clone --branch qnx-platform https://github.com/altinayselman/wasm-micro-runtime.git
 ```
 
-Puis, avec le SDP sourcé (`QNX_HOST` et `QNX_TARGET` posés) :
+The CI workflow below checks out exactly that branch. Once #5200 is merged, change the checkout
+to the upstream tag and this note disappears.
+
+## QNX Software Center (QSC) compatibility warning
+
+QNX Software Center ships its own `libiwasm.a` / `iwasm` in some SDP images. Installing this port
+may therefore introduce a linking conflict at runtime. Check which version of the library your
+software was cross-compiled against, and set the appropriate `LD_LIBRARY_PATH` for the dynamic
+linker. This port is **not** an update of the QSC-provided library: it installs its own
+`usr/local/lib/libiwasm.a` and `usr/local/bin/iwasm`.
+
+**NOTE: QNX ports are only supported from a Linux host operating system.**
+
+Use `$(nproc)` instead of `4` after `JLEVEL=` and `-j` if you want to use the maximum number of
+cores to build this project.
+
+# Compile the port for QNX in a Docker container
+
+Pre-requisite: install Docker on Ubuntu — https://docs.docker.com/engine/install/ubuntu/
 
 ```bash
-cd wamr
-make -j$(nproc)            # descend dans nto-x86_64-o/ puis nto-aarch64-le/ via recurse.mk
+# Create a workspace
+mkdir -p ~/qnx_workspace && cd ~/qnx_workspace
+git clone https://github.com/qnx-ports/build-files.git
+
+# Build the Docker image and create a container
+cd build-files/docker
+./docker-build-qnx-image.sh
+./docker-create-container.sh
+
+# Now you are in the Docker container
+
+# source qnxsdp-env.sh in
+source ~/qnx800/qnxsdp-env.sh
+
+# Clone WAMR **with the QNX platform support** (see the dependency note above)
+cd ~/qnx_workspace
+git clone --branch qnx-platform https://github.com/altinayselman/wasm-micro-runtime.git wasm-micro-runtime
+cd ..
+
+# Build wamr
+JLEVEL=$(nproc) QNX_PROJECT_ROOT="$(pwd)/wasm-micro-runtime" make -C build-files/ports/wamr install
 ```
 
-## Environnement Docker
+# Compile the port for QNX on a host
 
-L'arbre des ports fournit une image de construction reproductible (`docker/README.md` amont).
-Le `Dockerfile` de ce dossier montre l'environnement minimal attendu.
+```bash
+# Create a workspace
+mkdir -p ~/qnx_workspace && cd ~/qnx_workspace
+git clone https://github.com/qnx-ports/build-files.git
 
-**Le SDP n'est jamais inclus dans l'image** : il est sous licence QNX et ne peut pas être
-redistribué. Il est monté depuis l'hôte au moment de la construction.
+# source qnxsdp-env.sh in
+source ~/qnx800/qnxsdp-env.sh
 
-## Ce qu'il reste à faire
+# Clone WAMR **with the QNX platform support**
+cd ~/qnx_workspace
+git clone --branch qnx-platform https://github.com/altinayselman/wasm-micro-runtime.git wasm-micro-runtime
+cd ..
 
-| Étape | Bloquant ? | Qui |
+# Build wamr
+JLEVEL=$(nproc) QNX_PROJECT_ROOT="$(pwd)/wasm-micro-runtime" make -C build-files/ports/wamr install
+```
+
+# What gets installed
+
+| Path | Content |
+|---|---|
+| `usr/local/bin/iwasm` | the QNX interpreter (bytecode and AOT loader) |
+| `usr/local/lib/libiwasm.a` | the runtime library, for linking into your own host programs |
+| `usr/local/include/wasm_export.h` | the public embedding API |
+| `usr/local/lib/cmake/iwasm/` | CMake package configuration files |
+
+# Build options
+
+The build options are WAMR's own, and can be overridden on the `make` command line, for example:
+
+```bash
+JLEVEL=$(nproc) \
+WAMR_BUILD_LIBC_WASI=0 \
+WAMR_BUILD_LIB_PTHREAD=0 \
+QNX_PROJECT_ROOT="$(pwd)/wasm-micro-runtime" \
+make -C build-files/ports/wamr install
+```
+
+| Option | Default | Meaning |
 |---|---|---|
-| Installer le SDP 8.0 | oui | humain (licence gratuite, ~1 h) |
-| Créer `core/shared/platform/qnx/` (essai **E2**) | oui | contribution amont |
-| Créer `product-mini/platforms/qnx/` | oui | contribution amont |
-| Exécuter cette recette et corriger les `HYPOTHÈSE` | oui | après les deux précédents |
-| Publier le résultat sur le tableau de bord `oss.qnx.com` | non | équipe des ports |
+| `WAMR_BUILD_INTERP` | 1 | the bytecode interpreter |
+| `WAMR_BUILD_FAST_INTERP` | 1 | the fast interpreter |
+| `WAMR_BUILD_AOT` | 1 | the AOT loader (the AOT *compiler* `wamrc` needs LLVM and is not built here) |
+| `WAMR_BUILD_JIT` | 0 | the LLVM JIT is not built: it needs LLVM |
+| `WAMR_BUILD_LIBC_BUILTIN` | 1 | WAMR's own minimal libc |
+| `WAMR_BUILD_LIBC_WASI` | 1 | WASI preview 1 |
+| `WAMR_BUILD_LIB_PTHREAD` | 1 | the pthread library |
+| `WAMR_BUILD_DUMP_CALL_STACK` | 1 | call-stack dumping, for post-mortem analysis |
+
+# Supported targets
+
+`nto x86_64` and `nto aarch64le`, QNX SDP 8.0. The aarch64le target is built and installed but
+has not been run on hardware.
+
+# Notes
+
+- The QNX platform layer reuses WAMR's existing POSIX layer; QNX keeps the BSD socket API in
+  `libsocket`, while pthreads, `dlopen()` and the clocks live in `libc`.
+- `MAP_32BIT` does not exist on QNX; the port uses QNX's `MAP_BELOW` flag instead, so the
+  low-2 GB code region for AOT is preserved.
+- QNX has no `pthread_getattr_np()`; the native stack bounds are read from thread-local storage
+  so that the stack guard pages can still be placed.

@@ -49,11 +49,43 @@ Détail complet, daté et sourcé : [`docs/E5-preuves-absence.md`](../docs/E5-pr
 
 | Chemin | État |
 |---|---|
-| `qnx-ports/` | recette de port + fichier d'outillage CMake QNX **vérifié** (variante `qcc`, noms des binutils). **Piste de contribution toujours libre** |
+| `qnx-ports/` | recette de port **testée** : les deux cibles (`nto x86_64`, `nto aarch64le`) construisent et s'installent sans erreur. **PR ouverte : [qnx-ports/build-files#337](https://github.com/qnx-ports/build-files/pull/337)** |
 | `wamr/patches/` | 2 correctifs **vérifiés par compilation et liaison**, conservés comme trace de la vérification indépendante. **Non soumis** |
 | `wamr/cover-letter.md` | **périmée, ne pas soumettre** — elle demande s'il existe un effort QNX en cours ; la réponse est oui |
-| `wamr/build-instructions.md` | à jour : Linux vérifié de bout en bout, QNX vérifié en compilation + liaison |
+| `wamr/build-instructions.md` | à jour : Linux vérifié de bout en bout, QNX vérifié en compilation + liaison + exécution |
 | `wamr/PORTING-NOTES.md` | à jour : résultats mesurés, écarts comparés à ceux de #5200 |
+
+## La PR `qnx-ports/build-files#337` — ce qu'elle est, et comment elle a été testée
+
+**Elle ajoute `ports/wamr/`** : la recette qui construit WAMR 2.4.5 pour QNX 8.0 dans l'arbre
+officiel des ports QNX, plus le workflow CI correspondant. C'est le **seul dépôt amont où le
+portage WAMR n'existe pas encore** — c'est donc une contribution réellement disponible, et non un
+doublon.
+
+Testée avant d'être ouverte, sur cette machine, avec le SDP 8.0 et le framework `mk` du SDP
+(`$QNX_TARGET/usr/include/mk/recurse.mk`, qui fait partie de l'installation) :
+
+```
+JLEVEL=$(nproc) QNX_PROJECT_ROOT="<WAMR avec le support QNX>" make -C build-files/ports/wamr install
+```
+
+| Cible | `libiwasm.a` | `iwasm` |
+|---|---|---|
+| `nto x86_64` | 1 348 796 o | 715 024 o |
+| `nto aarch64le` | 1 371 320 o | 744 464 o |
+
+Les deux cibles **construisent et s'installent, sans erreur**.
+
+Un détail qui a coûté une heure et qui vaut d'être écrit pour le prochain port : la correspondance
+de cible doit se faire sur **`CPUVARDIR`**, pas sur `CPU`. Sur cet arbre `CPU` vaut `aarch64`
+alors que `CPUVARDIR` vaut `aarch64le` — exactement le même décalage que les binutils
+(`ntoaarch64-ar`) et la variante qcc (`-Vgcc_ntoaarch64le`). Se fier à `CPU` donne un
+`WAMR_BUILD_TARGET` vide, et cmake s'arrête sur « Build target isn't set ».
+
+**Dépendance assumée et documentée dans la PR** : l'arbre WAMR amont n'a pas encore de couche
+plateforme QNX — elle est proposée par la PR #5200, encore ouverte. La CI de la recette compile
+donc la branche de cette PR, et la PR le dit explicitement, en proposant de basculer sur le tag
+amont dès la fusion. C'est aussi l'une des deux questions posées aux relecteurs.
 
 ## Ce qui reste libre comme contribution amont
 

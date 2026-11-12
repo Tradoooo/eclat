@@ -69,8 +69,9 @@ Sur un noyau monolithique seule la première existe ; leur superposition est l'a
       `MsgSend`/`MsgReply` au lieu d'appels de fonction (ECL-11).
 - [ ] Politique de sécurité `secpol` interdisant au runtime tout accès hors courtier (ECL-14).
 - [ ] Banc de latence **sur cible** avec la boucle à 1 kHz (ECL-12, ECL-13).
-- [ ] Contribution amont : recette `qnx-ports/build-files` (libre) — le portage WAMR, lui,
-      appartient à la PR #5200.
+- [ ] Contribution amont : la recette `qnx-ports/build-files` est **ouverte** —
+      [PR #337](https://github.com/qnx-ports/build-files/pull/337), testée sur les deux cibles
+      avant envoi. Le portage WAMR, lui, appartient à la PR #5200.
 
 ## Structure
 

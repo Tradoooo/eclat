@@ -59,6 +59,12 @@ les travaux tiers suivants, tous sous licence Apache-2.0, et les cite conformém
 ## Arbre des ports QNX
 
 - Amont : https://github.com/qnx-ports/build-files
-- Les conventions de notre recette `upstream/qnx-ports/` ont été lues sur le port `ports/zlib`
-  de cet arbre (Makefile, `common.mk`, `qnx.nto.toolchain.cmake`, répertoires `nto-*`).
-  Notre fichier d'outillage s'en inspire et le signale en en-tête.
+- **Notre PR : https://github.com/qnx-ports/build-files/pull/337** — « Add wamr port: WAMR 2.4.5
+  for QNX 8.0 », ouverte le 2026-11-12. Ajoute `ports/wamr/` (recette + fichier d'outillage CMake
+  + README + workflow CI) et la correspondance de cible.
+- Les conventions de notre recette ont été lues sur le port `ports/zlib` de cet arbre (Makefile,
+  `common.mk`, `qnx.nto.toolchain.cmake`, répertoires `nto-*`), et notre fichier d'outillage s'en
+  inspire explicitement. La recette a été **exécutée** avant l'ouverture : les deux cibles
+  (`nto x86_64`, `nto aarch64le`) construisent et s'installent sans erreur.
+- La recette **dépend** de la PR amont #5200 : l'arbre WAMR n'a pas encore de couche plateforme
+  QNX. C'est dit dans la PR, qui propose de basculer sur le tag amont dès la fusion.

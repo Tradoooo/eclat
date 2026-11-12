@@ -1,5 +1,41 @@
 # DECISIONS — journal des décisions de conception
 
+## 2026-11-12 — Contribution amont : une recette pour l'arbre des ports QNX (PR #337)
+
+**Décision.** La contribution amont d'Éclat est la **recette de port WAMR pour
+[qnx-ports/build-files](https://github.com/qnx-ports/build-files)** — ouverte en
+[PR #337](https://github.com/qnx-ports/build-files/pull/337) — et non le portage lui-même.
+
+**Pourquoi.** Après la découverte de la PR #5200, il fallait un dépôt amont où notre travail
+apporte réellement quelque chose. L'arbre des ports QNX est ce dépôt : vérifié le 2026-11-12, il ne
+contient **aucune** entrée WebAssembly (`~150` ports lus, `github.com/qnx-ports/wamr` en 404,
+recherche `org:qnx-ports wasm` → 0 dépôt). La recette est donc le chaînon manquant entre le
+portage QNX de WAMR et l'outillage de build officiel de QNX.
+
+**Testée avant d'être ouverte, pas après.** Le framework `mk` du SDP 8.0
+(`$QNX_TARGET/usr/include/mk/recurse.mk`, présent dans l'installation) permet d'exécuter la
+recette localement :
+
+```
+JLEVEL=$(nproc) QNX_PROJECT_ROOT="<WAMR avec le support QNX>" make -C build-files/ports/wamr install
+```
+
+→ `nto x86_64` : `libiwasm.a` 1 348 796 o, `iwasm` 715 024 o ; `nto aarch64le` : 1 371 320 o et
+744 464 o. Les deux cibles **construisent et s'installent sans erreur**. Une recette non
+exécutée n'aurait pas été proposée : elle aurait été une supposition.
+
+**Le piège qui a coûté une heure, et qui est écrit pour le suivant.** La correspondance de cible
+doit se faire sur **`CPUVARDIR`**, pas sur `CPU` : sur cet arbre `CPU` vaut `aarch64` et
+`CPUVARDIR` vaut `aarch64le` — le même décalage que les binutils (`ntoaarch64-ar`) et la
+variante qcc (`-Vgcc_ntoaarch64le`). Se fier à `CPU` produit un `WAMR_BUILD_TARGET` vide et cmake
+s'arrête sur « Build target isn't set », sans message parlant de la cible.
+
+**Dépendance documentée dans la PR.** L'arbre WAMR amont n'a pas de couche plateforme QNX : la
+recette compile donc la branche de la PR #5200, et la PR #337 le dit, propose de basculer sur le
+tag amont dès la fusion, et pose la question aux relecteurs. Sur les deux ports déjà présents dans
+cet arbre, la CI d'une PR externe s'affiche `action_required` : c'est l'état normal, le
+mainteneur doit approuver l'exécution sur son runner dédié.
+
 ## 2026-11-12 — Éclat tourne sur QNX 8.0.0, en s'appuyant sur le portage amont #5200
 
 **Décision.** Plutôt que de maintenir nos deux correctifs, Éclat se construit sur le portage
