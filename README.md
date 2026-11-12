@@ -27,20 +27,22 @@ Sur un noyau monolithique seule la première existe ; leur superposition est l'a
 
 - [x] Cahier des charges ([`docs/cahier-des-charges.md`](docs/cahier-des-charges.md), 22 exigences ECL-01..22).
 - [x] Contrat gelé ([`CONTRACT.md`](CONTRACT.md)) + spec anglaise ([`docs/spec-en.md`](docs/spec-en.md)).
-- [x] `core/` : moteur de décision C11 pur + politique + budget + journal — **161 vérifications**, ASan/UBSan clean (ECL-01, ECL-02, ECL-05, ECL-06).
+- [x] `core/` : moteur de décision C11 pur + politique + budget + journal + SHA-256 — **198 vérifications**, ASan/UBSan clean (ECL-01, ECL-02, ECL-05, ECL-06, ECL-07).
 - [x] `host/` : jumeau Python indépendant + test différentiel — **10 000 décisions** C ↔ Python concordantes par graine (ECL-03). C'est lui qui a attrapé le bug de la sentinelle `-1` ([`docs/DECISIONS.md`](docs/DECISIONS.md)).
 - [x] **Fuzz** du parseur : 3 000 entrées mutées sous ASan/UBSan, 0 plantage (ECL-08, ECL-15).
 - [x] **Mutants** : 22 régressions volontaires injectées dans `core/`, **22 tuées** — taux de détection 100 % (ECL-15).
 - [x] Chaîne d'approvisionnement : journal d'audit à **hachage enchaîné** + vérificateur indépendant, **manifeste de module signé**.
 - [x] Outillage : `eclatctl` (dont `explain`, qui déroule les 7 étapes d'une décision) et SDK `eclat-new-module` (un module testable sur Linux en 3 commandes).
-- [x] Banc de latence `capbench` (C ≈ 4 ns/décision, jumeau Python ≈ 260 ns — mesuré sur Linux, **pas** sur QNX).
-- [x] Amont : recette `qnx-ports` conforme à l'arbre réel, lettre d'accompagnement, notes de portage, versions épinglées.
+- [x] Banc de latence `capbench` (C ≈ 4 ns/décision, jumeau Python ≈ 500 ns — mesuré sur Linux, **pas** sur QNX).
+- [x] **WAMR sur Linux** : runtime `WAMR-2.4.5` compilé, couche `platform/posix/` écrite, et **trois modules `.wasm` réels** exécutés avec leurs 7 imports routés par le moteur de décision (ECL-04).
+- [x] Empreinte vérifiée avant chargement : un octet modifié refuse le module (ECL-07), vecteurs NIST recoupés avec `sha256sum`.
+- [x] Budget CPU appliqué : le module gourmand qui boucle sans fin est **tué** (ECL-06).
+- [x] Amont : recette `qnx-ports` conforme à l'arbre réel, lettre d'accompagnement, notes de portage, versions épinglées et empreinte wasi-sdk vérifiée.
 - [x] Preuves d'absence de port Wasm existant ([`docs/E5-preuves-absence.md`](docs/E5-preuves-absence.md), essai **E5**).
 
 **Bloqué par le SDP QNX 8.0 (non installé) :**
 
-- [ ] `platform/posix/` : WAMR sur Linux (ECL-04, ECL-07, ECL-08) — gratuit mais demande un clone + cmake.
-- [ ] `platform/qnx/` + courtier + politique de sécurité (ECL-10..16).
+- [ ] `platform/qnx/` + courtier en gestionnaire de ressources + politique de sécurité (ECL-10..16).
 - [ ] Essai **E2** : WAMR compile-t-il avec `qcc` ? — **le seul chemin critique du projet**.
 
 ## Structure
@@ -58,24 +60,34 @@ eclat/
 ├── templates/module/        # gabarit du SDK : un module testable sur Linux sans QNX
 ├── upstream/                # la contribution amont : qnx-ports/ et wamr/
 ├── docs/                    # cahier, spec-en, DECISIONS, E5, sécurité mappée, 5 technos QNX, 100 idées
-├── platform/posix/          # (à venir) couche plateforme WAMR pour Linux
-├── platform/qnx/            # (à venir) couche plateforme WAMR pour QNX — exige le SDP
-├── broker/                  # (à venir) courtier, gestionnaire de ressources QNX
-└── modules/                 # (à venir) 3 modules de démonstration .wasm
+├── platform/include/        # contrat de la couche plateforme (UNE déclaration)
+├── platform/posix/          # implémentation Linux — horloge, CPU, journal
+├── runtime/                 # intégration WAMR : instanciation, imports natifs, budget
+├── modules/                 # 3 modules de démonstration (honnête, gourmand, hostile)
+├── target/                  # eclat-run, le chargeur superviseur
+├── tests/                   # intégration WAMR (ECL-04/05/06/07)
+├── platform/qnx/            # (à venir) couche plateforme QNX — exige le SDP
+└── broker/                  # (à venir) courtier, gestionnaire de ressources QNX
 ```
+
+Les dépendances externes (WAMR, wasi-sdk) vivent dans `.deps/`, jamais committées : le règlement
+de la catégorie interdit de soumettre un fork de l'amont.
 
 ## Construire et tester (n'a besoin d'aucun SDP)
 
 ```bash
 make core            # libeclat.a en C11 strict -std=c11 -O2 -Wall -Wextra -Werror
-make test            # 161 vérifications
+make test            # 198 vérifications
 make test-san        # les mêmes sous ASan/UBSan
-make python-tests    # 129 tests du jumeau, de la console, de l'audit et du manifeste
+make python-tests    # 131 tests du jumeau, de la console, de l'audit et du manifeste
 make differential    # 10 000 décisions C ↔ Python comparées
 make fuzz            # 3 000 entrées mutées sur le parseur (FUZZ_ITERATIONS pour changer)
 make mutants         # 22 mutants, tous doivent être tués
 make bench           # banc de latence C ↔ Python
 make size-check      # < 500 lignes/fichier, < 50 lignes/fonction
+make deps            # WAMR épinglé + wasi-sdk (empreinte vérifiée) → .deps/
+make wasm runtime    # 3 modules .wasm + le chargeur eclat-run
+make test-wasm       # intégration : ECL-04/05/06/07, 12 vérifications
 make spdx            # en-tête SPDX sur chaque source
 ```
 
@@ -85,15 +97,32 @@ d'amélioration classées (dont 89 gratuites).
 
 ## Démonstration immédiate
 
+**Le runtime WebAssembly, pour de vrai** (clone WAMR + wasi-sdk, ~800 Mo dans `.deps/`, jamais
+committés) :
+
+```bash
+tools/fetch-deps.sh          # WAMR-2.4.5 épinglé + wasi-sdk 34.0 (empreinte sha256 vérifiée)
+make wasm runtime test-wasm  # 3 modules .wasm, chargeur, 12 vérifications d'intégration
+build/bin/eclat-run politique.toml build/wasm/hostile.wasm
+```
+
+Le module hostile, exécuté sous WAMR, dont chaque import passe par le moteur de décision :
+
+```
+[eclat log niv=2] {"seq":1,"module":"hostile","cap":"net_send","decision":"CAP_DENIED_POLICY"}
+[eclat log niv=2] {"seq":2,"module":"hostile","cap":"write_actuator","decision":"CAP_DENIED_RANGE"}
+[eclat log niv=2] {"seq":3,"module":"hostile","cap":"read_sensor","decision":"CAP_DENIED_RANGE"}
+[eclat log niv=2] {"seq":4,"module":"hostile","cap":"kv_put","decision":"CAP_DENIED_POLICY"}
+```
+
+**Un module tiers généré par le SDK**, rejoué contre le vrai moteur :
+
 ```bash
 python3 tools/eclat-new-module.py demo --dir /tmp && cd /tmp/demo && make test
 ```
 
-Un module généré, rejoué contre le vrai moteur de décision :
-
 ```
 module demo — politique « demo »
-  [log niv=1] demo démarré
   [ 1] read_sensor     id=1    valeur=0       -> CAP_OK
   [ 2] write_actuator  id=3    valeur=2100    -> CAP_DENIED_RANGE
   [ 3] net_send        id=9    valeur=0       -> CAP_DENIED_POLICY

@@ -13,7 +13,7 @@ HEAD = 4
 fail = 0
 
 for dirpath, dirs, files in os.walk(ROOT):
-    dirs[:] = [d for d in dirs if d not in ("build", "__pycache__", ".git")]
+    dirs[:] = [d for d in dirs if d not in ("build", "__pycache__", ".git", ".deps", "fuzz-artifacts")]
     for f in files:
         if not f.endswith(SUFFIXES):
             continue

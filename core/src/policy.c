@@ -6,6 +6,7 @@
  * Le parseur consomme un tampon d'octets fourni par l'appelant et remplit une structure
  * à tableaux de taille fixe. Voir CONTRACT.md §2 pour le sous-ensemble TOML accepté. */
 #include "eclat/cap_policy.h"
+#include "eclat/cap_sha256.h"
 #include "toml_internal.h"
 
 #include <string.h>
@@ -23,29 +24,15 @@ static void set_err(eclat_policy_error_t *err, int lineno, const char *field, co
     err->message[sizeof(err->message) - 1] = '\0';
 }
 
-static int hex_val(char c) {
-    if (c >= '0' && c <= '9') return c - '0';
-    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-    if (c >= 'A' && c <= 'F') return c - 'A' + 10;
-    return -1;
-}
-
-/* sha256 : chaîne de exactement 64 hex → 32 octets. Retourne 0 si valide. */
-static int parse_sha256(eclat_toml_view v, uint8_t out[32]) {
-    char buf[65];
+/* sha256 : chaîne de exactement 64 hex → 32 octets. Retourne 0 si valide.
+ * Le décodage hexadécimal n'est implémenté qu'une seule fois, dans cap_sha256.h. */
+static int parse_sha256(eclat_toml_view v, uint8_t out[ECLAT_SHA256_DIGEST_LEN]) {
+    char buf[ECLAT_SHA256_HEX_LEN + 1];
     size_t blen = 0;
-    if (eclat_toml_string(v, buf, sizeof(buf), &blen) != 0 || blen != 64) {
+    if (eclat_toml_string(v, buf, sizeof(buf), &blen) != 0) {
         return -1;
     }
-    for (int i = 0; i < 32; i++) {
-        int hi = hex_val(buf[2 * i]);
-        int lo = hex_val(buf[2 * i + 1]);
-        if (hi < 0 || lo < 0) {
-            return -1;
-        }
-        out[i] = (uint8_t)((hi << 4) | lo);
-    }
-    return 0;
+    return eclat_sha256_from_hex(buf, blen, out);
 }
 
 static int uint_key(eclat_toml_view val, uint32_t *dst, eclat_policy_error_t *err, int lineno,

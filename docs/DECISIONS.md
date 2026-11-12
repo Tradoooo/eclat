@@ -1,5 +1,56 @@
 # DECISIONS — journal des décisions de conception
 
+## 2026-11-12 — WAMR sur Linux : le runtime existe, et le budget CPU se règle à deux niveaux
+
+**Décision.** Les lots L4 (couche `platform/posix` + intégration WAMR) et L5 (trois modules de
+démonstration compilés en `.wasm`) sont implémentés et testés sur Linux. Le budget CPU est
+appliqué à **deux niveaux** : refus synchrone dans le runtime à chaque import, et mise à mort du
+**processus** par le chargeur quand une boucle de calcul n'appelle aucun import.
+
+**Pourquoi deux niveaux.** La première version voulait un thread chien de garde appelant
+`wasm_runtime_terminate()`. Lecture du code amont : cette fonction se contente de poser une
+exception (`wasm_set_exception(module_inst, "terminated by user")`), et sans
+`WASM_ENABLE_THREAD_MGR` l'interpréteur ne la consulte pas pendant une boucle — le module
+gourmand tournait donc indéfiniment (constaté : test d'intégration bloqué au-delà de 120 s).
+Plutôt que d'activer le gestionnaire de threads amont (hors périmètre, cf. cahier §3.2), le
+chargeur exécute le module dans un processus enfant et le tue à l'échéance. C'est aussi
+**l'architecture visée sur QNX** : le courtier refuse de façon synchrone, le gestionnaire de
+processus met à mort. La couche `runtime/` ne crée donc plus aucun thread, ce qui la rend
+portable telle quelle.
+
+**Conséquence mesurée.** Module gourmand avec un budget de 200 ms : tué en 1 205 ms (budget +
+marge de 1 000 ms). La marge est un choix du chargeur, pas une propriété du noyau ; sur QNX elle
+disparaîtra au profit d'un TimerPulse.
+
+## 2026-11-12 — Le toolchain wasi-sdk casse si un `wasm-opt` pourri traîne dans PATH
+
+**Décision.** Le Makefile compile les modules `.wasm` avec un `PATH` imposé
+(`/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`), variable `WASM_PATH`.
+
+**Pourquoi.** Le `clang` de wasi-sdk invoque un `wasm-opt` trouvé dans `PATH`. Celui de
+`~/.local/bin` est un script Node ESM cassé sous Node 26 (`ReferenceError: require is not defined
+in ES module scope`), et l'édition de liens échoue avec un simple « linker command failed », noyé
+sous 25 000 lignes de code JavaScript déversé sur stderr. Diagnostic long, cause invisible :
+c'est consigné ici pour ne pas le repayer.
+
+**Impact.** `Makefile` (`WASM_PATH`), `VERSIONS` (section `piege_environnement`).
+
+## 2026-11-12 — SHA-256 écrit dans `core/`, et décodage hexadécimal unique
+
+**Décision.** SHA-256 (FIPS 180-4) est implémenté dans `core/src/sha256.c`, en C11 pur, et
+`core/src/policy.c` réutilise `eclat_sha256_from_hex` au lieu de son propre décodage.
+
+**Pourquoi.** ECL-07 exige la vérification de l'empreinte avant chargement, donc un SHA-256 sans
+dépendance (ni OpenSSL, ni `qcrypto` qui n'existe que sur cible). Le hachage est un calcul pur :
+il a sa place dans `core/`. Supprimer le décodage hexadécimal dupliqué de `policy.c` applique la
+règle « une seule implémentation par logique » — et le mutant `pol-longueur-sha256-affaiblie` a dû
+être remplacé par `pol-sha256-jamais-verifie`, l'ancien fragment n'existant plus.
+
+**Vérification.** Vecteurs NIST (message vide, « abc », 448 bits, un million de « a ») recoupés
+avec `sha256sum` ; hachage incrémental comparé au one-shot sur 20 longueurs touchant toutes les
+frontières du bourrage (0, 1, 55, 56, 57, 63, 64, 65, 119…1000) ; comparaison d'empreintes en
+temps constant. 37 vérifications.
+
 ## 2026-11-12 — L'URL amont du cahier des charges était fausse
 
 **Décision.** Toutes les références à `github.com/bytecodealliance/wamr` sont remplacées par

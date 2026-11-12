@@ -18,7 +18,7 @@ import sys
 import tempfile
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-IGNORE = shutil.ignore_patterns(".git", "build", "fuzz-artifacts", "__pycache__", "*.o", "*.a")
+IGNORE = shutil.ignore_patterns(".git", ".deps", "build", "fuzz-artifacts", "__pycache__", "*.o", "*.a")
 
 # (nom, fichier relatif, fragment exact, remplacement) — chaque fragment doit être unique.
 MUTANTS = [
@@ -61,7 +61,8 @@ MUTANTS = [
     ("pol-name-toujours-vide", "core/src/policy.c", "out->name_len = nlen;", "out->name_len = 0;"),
     ("pol-validate-plage-id-ignoree", "core/src/policy.c",
      "if (r->has_ids && r->id_min > r->id_max) {", "if (0) {"),
-    ("pol-longueur-sha256-affaiblie", "core/src/policy.c", "|| blen != 64)", "|| blen != 6)"),
+    ("pol-sha256-jamais-verifie", "core/src/policy.c",
+     "return eclat_sha256_from_hex(buf, blen, out);", "return 0;"),
     ("toml-tableau-non-ferme-accepte", "core/src/toml.c",
      "if (v.n < 2 || v.p[0] != '[' || v.p[v.n - 1] != ']') {", "if (v.n < 2) {"),
     ("names-code-decision-constant", "core/src/names.c",

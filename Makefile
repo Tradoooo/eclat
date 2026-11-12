@@ -11,13 +11,30 @@ FUZZ_ITERATIONS ?= 2000
 FUZZ_BIN := $(BUILD)/bin/fuzz-harness
 BENCH_BIN := $(BUILD)/bin/eclat-bench
 
+# --- Dépendances externes (WAMR, wasi-sdk) : .deps/, jamais committées ----------------
+DEPS      := .deps
+WAMR_ROOT := $(DEPS)/wasm-micro-runtime
+WAMR_INC  := $(WAMR_ROOT)/core/iwasm/include
+WAMR_LIB  := $(WAMR_ROOT)/product-mini/platforms/linux/build/libiwasm.a
+WASI_SDK  := $(firstword $(wildcard $(DEPS)/wasi-sdk-*))
+WASM_CC   := $(WASI_SDK)/bin/clang
+# Le toolchain wasi-sdk invoque un `wasm-opt` trouvé dans PATH ; celui de ~/.local/bin est
+# cassé sur cette machine (script Node ESM). On impose donc un PATH propre pour la
+# compilation wasm — sans quoi l'édition de liens échoue.
+WASM_PATH := /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+MODULES   := honneste gourmand hostile
+WASM_BINS := $(patsubst %,$(BUILD)/wasm/%.wasm,$(MODULES))
+RUN_BIN   := $(BUILD)/bin/eclat-run
+RUNTIME_CFLAGS := -std=c11 -O2 -Wall -Wextra -Werror -Icore/include -Iplatform/include \
+                  -Iruntime -I$(WAMR_INC)
+
 CORE_SRCS := $(sort $(wildcard core/src/*.c))
 CORE_OBJS := $(patsubst core/src/%.c,$(BUILD)/obj/%.o,$(CORE_SRCS))
 TEST_SRCS := $(sort $(wildcard core/tests/*.c))
 TEST_BINS := $(patsubst core/tests/%.c,$(BUILD)/bin/%,$(TEST_SRCS))
 DECIDE_BIN := $(BUILD)/bin/eclat-decide
 
-.PHONY: all core test test-san decide python python-tests differential fuzz mutants bench clean size-check spdx
+.PHONY: all core test test-san decide python python-tests differential fuzz mutants bench deps wasm runtime test-wasm clean size-check spdx
 
 all: core
 
@@ -77,6 +94,33 @@ bench: $(BENCH_BIN)
 $(BENCH_BIN): tools/eclat_bench.c $(LIB)
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $< $(LIB) -o $@
+
+# --- Runtime WAMR sur Linux (lots L4/L5) --------------------------------------------
+# Tout se construit et se teste sans SDP : c'est le point d'architecture du projet.
+deps:
+	tools/fetch-deps.sh
+
+wasm: $(WASM_BINS)
+
+$(BUILD)/wasm/%.wasm: modules/%.c modules/imports.h
+	@mkdir -p $(dir $@)
+	@test -x "$(WASM_CC)" || { echo "wasi-sdk absent : lance « make deps »"; exit 1; }
+	PATH="$(WASM_PATH)" $(WASM_CC) --target=wasm32 -nostdlib -Wl,--no-entry \
+	  -Wl,--export=run -O2 -Wall -Wextra -Werror -Imodules $< -o $@
+
+runtime: $(RUN_BIN)
+
+$(RUN_BIN): target/eclat_run.c runtime/eclat_runtime.c platform/posix/eclat_platform_posix.c \
+            $(LIB) $(WAMR_LIB)
+	@mkdir -p $(dir $@)
+	@test -f "$(WAMR_LIB)" || { echo "libiwasm.a absente : lance « make deps »"; exit 1; }
+	$(CC) $(RUNTIME_CFLAGS) target/eclat_run.c runtime/eclat_runtime.c \
+	  platform/posix/eclat_platform_posix.c $(LIB) $(WAMR_LIB) -lpthread -lm -o $@
+
+# Intégration : ECL-04 (exécution), ECL-05 (refus), ECL-06 (budget CPU), ECL-07 (empreinte).
+test-wasm: runtime wasm
+	@chmod +x tests/integration_wasm.sh
+	tests/integration_wasm.sh
 
 size-check:
 	python3 tools/sizecheck.py

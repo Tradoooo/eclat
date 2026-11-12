@@ -25,3 +25,5 @@ fuzz-artifacts/
 
 # artefacts temporaires
 *.wasm.log
+# dépendances externes (WAMR, wasi-sdk) — jamais committées
+.deps/

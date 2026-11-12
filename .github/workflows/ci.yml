@@ -83,3 +83,21 @@ jobs:
           fetch-depth: 1
       - name: make mutants
         run: make mutants
+
+  # Intégration WAMR sur Linux : aucun SDP requis. Télécharge WAMR (épinglé WAMR-2.4.5) et
+  # wasi-sdk (empreinte sha256 vérifiée), compile les 3 modules de démonstration en .wasm,
+  # construit le chargeur et rejoue ECL-04/05/06/07.
+  wasm:
+    name: runtime WAMR + modules .wasm (ECL-04/05/06/07)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: dépendances (WAMR épinglé + wasi-sdk vérifié)
+        run: tools/fetch-deps.sh
+      - name: modules .wasm + chargeur
+        run: make core wasm runtime
+      - name: intégration
+        run: make test-wasm
