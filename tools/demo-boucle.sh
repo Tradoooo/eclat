@@ -40,6 +40,10 @@ SORTIE="$SORTIE_DIR/$(date +%Y-%m-%d)-boucle-1khz.txt"
 sha=$(sha256sum build/wasm/gourmand.wasm | cut -d' ' -f1)
 printf '[module]\nname = "gourmand"\nsha256 = "%s"\ncpu_budget_ms_per_s = 300\ncalls_per_s = 0\n\n[[allow]]\ncap = "read_sensor"\nids = [1]\n' "$sha" > /tmp/gourd.toml
 
+# Politique du courtier (pour la boucle) : lecture du capteur autorisée, actionneur borné.
+printf '[module]\nname = "broker-demo"\nsha256 = "%s"\ncpu_budget_ms_per_s = 100\ncalls_per_s = 0\n\n[[allow]]\ncap = "read_sensor"\nids = [1]\n\n[[allow]]\ncap = "write_actuator"\nids = [3]\nvalue_milli_range = [-1000, 1000]\n' \
+  "$(printf 'ab%.0s' $(seq 32))" > /tmp/pol-broker.toml
+
 {
   echo "# Éclat — la boucle 1 kHz et la mise à mort d'un module gourmand"
   echo "# Capturée le $(date -Is) par tools/demo-boucle.sh"
@@ -54,8 +58,8 @@ printf '[module]\nname = "gourmand"\nsha256 = "%s"\ncpu_budget_ms_per_s = 300\nc
   echo "════════ Transfert ════════"
   $SSH root@"$HOTE" "mkdir -p $DISTANT" 2>&1 | grep -v '^Warning'
   $SCP -q build/qnx-$ARCH/eclat-broker build/qnx-$ARCH/eclat-boucle build/qnx-$ARCH/eclat-run \
-    build/wasm/gourmand.wasm /tmp/gourd.toml root@"$HOTE":"$DISTANT/" \
-    && echo "5 fichiers transférés"
+    build/wasm/gourmand.wasm /tmp/gourd.toml /tmp/pol-broker.toml root@"$HOTE":"$DISTANT/" \
+    && echo "6 fichiers transférés"
   echo
   echo "════════ Démarrage du courtier ════════"
   $SSH root@"$HOTE" "cd $DISTANT && slay -f eclat-broker 2>/dev/null; slay -f eclat-run 2>/dev/null; \
