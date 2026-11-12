@@ -45,6 +45,15 @@ cmd_start() {
   if [ -f "$PID" ] && kill -0 "$(cat "$PID")" 2>/dev/null; then
     echo "déjà démarrée (pid $(cat "$PID"))"; return 0; fi
   rm -f "$SERIAL"
+  # Affichage : headless (défaut), VNC (:1 → port 5901), ou fenêtre GTK sur le bureau.
+  case "${QNX_VM_MODE:-none}" in
+    vnc)
+      AFFICHAGE="-vnc :1 -serial vc:1280x800" ;;
+    gtk)
+      AFFICHAGE="-display gtk -serial vc:1280x800" ;;
+    *)
+      AFFICHAGE="-display none -serial file:$SERIAL" ;;
+  esac
   # shellcheck disable=SC2046
   qemu-system-x86_64 $(kvm) -smp 2 -m 1G \
     -drive file="$VM/output/disk-qemu",format=raw,if=ide,id=drv0 \
@@ -52,7 +61,9 @@ cmd_start() {
     -netdev user,id=net0,hostfwd=tcp:127.0.0.1:"$PORT"-:22 \
     -device virtio-net-pci,netdev=net0 \
     -object rng-random,filename=/dev/urandom,id=rng0 -device virtio-rng-pci,rng=rng0 \
-    -display none -serial file:"$SERIAL" -pidfile "$PID" -daemonize
+    $AFFICHAGE -pidfile "$PID" -daemonize
+  [ "${QNX_VM_MODE:-none}" = "none" ] || \
+    echo "affichage : $([[ ${QNX_VM_MODE:-none} = vnc ]] && echo 'VNC → vncviewer 127.0.0.1:5901 (console QNX dans la fenêtre)' || echo 'fenêtre GTK sur le bureau')"
   echo "== attente de sshd sur 127.0.0.1:$PORT =="
   for _ in $(seq 1 30); do
     if ssh -i "$CLE" -p "$PORT" -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
@@ -94,5 +105,5 @@ case "${1:-status}" in
   stop)    cmd_stop ;;
   status)  cmd_status ;;
   console) shift; cmd_console "${1:-40}" ;;
-  *) echo "usage : $0 {build|start|stop|status|console}" >&2; exit 2 ;;
+  *) echo "usage : $0 {build|start|stop|status|console}    (QNX_VM_MODE=none|vnc|gtk change l'affichage ; vnc → vncviewer 127.0.0.1:5901)" >&2; exit 2 ;;
 esac

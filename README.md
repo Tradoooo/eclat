@@ -139,6 +139,7 @@ make e2              # essai E2 : la couche POSIX de WAMR face à qcc (exige le 
 make qnx             # eclat-run pour QNX 8.0 (nos correctifs)
 make qnx-amont       # eclat-run pour QNX 8.0 avec le portage amont #5200 — celui qui a tourné
 tools/qnx-vm.sh build && tools/qnx-vm.sh start   # image QNX 8.0 pour QEMU (mkqnximage) + démarrage
+QNX_VM_MODE=vnc tools/qnx-vm.sh start             # au lieu de headless : la console QNX dans une fenêtre VNC (5901)
 make demo-qnx        # les 4 scénarios sur cible, console archivée dans docs/preuves-qnx/
 make watch           # la cible EN DIRECT : un battement toutes les 2 s (capteur vivant + uptime), Ctrl-C pour cesser
 make spdx            # en-tête SPDX sur chaque source
