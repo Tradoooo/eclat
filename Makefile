@@ -28,6 +28,8 @@ MODULES   := honneste gourmand hostile
 WASM_BINS := $(patsubst %,$(BUILD)/wasm/%.wasm,$(MODULES))
 RUN_BIN   := $(BUILD)/bin/eclat-run
 QNX_ARCH ?= x86_64
+# Port du tableau de bord temps réel (8787 est déjà pris sur cette machine par un autre service).
+LIVE_PORT ?= 8791
 # variante de répertoire attendue par scripts/build-qnx.sh du dépôt amont wamr-qnx
 QNX_ARCH_VARIANT = $(if $(filter aarch64,$(QNX_ARCH)),aarch64le,$(QNX_ARCH))
 RUNTIME_CFLAGS := -std=c11 -O2 -Wall -Wextra -Werror -Icore/include -Iplatform/include \
@@ -39,7 +41,7 @@ TEST_SRCS := $(sort $(wildcard core/tests/*.c))
 TEST_BINS := $(patsubst core/tests/%.c,$(BUILD)/bin/%,$(TEST_SRCS))
 DECIDE_BIN := $(BUILD)/bin/eclat-decide
 
-.PHONY: all core preuves test test-san decide python python-tests differential fuzz mutants bench deps wasm runtime test-wasm e2 qnx qnx-amont vm-qnx demo-qnx watch clean size-check spdx
+.PHONY: all core preuves test test-san decide python python-tests differential fuzz mutants bench deps wasm runtime test-wasm e2 qnx qnx-amont vm-qnx demo-qnx watch live clean size-check spdx
 
 all: core
 
@@ -145,6 +147,10 @@ qnx:
 # Tant que la cible tourne : un battement toutes les 2 s (capteur vivant + uptime), Ctrl-C pour cesser.
 watch:
 	tools/eclat-watch.sh $(QNX_ARCH)
+
+# La cible dans le navigateur : page web rafraîchie toutes les 2 s (uptime, capteur, courbe).
+live:
+	python3 tools/eclat-live.py --port $(LIVE_PORT)
 
 # Variante « portage amont » : utilise le port QNX de la PR #5200 (dépôt altinayselman/wamr-qnx,
 # Apache-2.0, voir NOTICE) au lieu de nos propres correctifs. C'est celle qui a tourné sur cible.
