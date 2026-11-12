@@ -18,18 +18,33 @@
 #include "eclat/cap_policy.h"
 
 #include <errno.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/dispatch.h>
 #include <sys/iomsg.h>
 #include <sys/neutrino.h>
+#include <sys/pathmgr.h>
+#include <unistd.h>
 
 /* Politique du module servi. Unique, en lecture seule après chargement. */
 static eclat_policy_t g_policy;
 
-/* Échantillon simulé du capteur, en milli-unités (rejeu bit à bit possible). */
-#define ECHANTILLON_CAPTEUR 4200
+/* Signal capteur simulé ET vivant : une sinusoïde de 1 Hz en milli-unités, centrée sur 3000,
+ * lue à l'instant de la demande. Deux lectures à des instants différents donnent des valeurs
+ * différentes — c'est un capteur, pas une constante. */
+#define SENSOR_CENTRE    3000
+#define SENSOR_AMPLITUDE 1000
+#define SENSOR_HZ        1.0
+
+static int32_t lire_capteur(void) {
+    _Uint64t ns = 0;
+    ClockTime(CLOCK_MONOTONIC, NULL, &ns);
+    double t = (double)ns / 1000000000.0;
+    double v = (double)SENSOR_CENTRE + (double)SENSOR_AMPLITUDE * sin(t * 2.0 * M_PI * SENSOR_HZ);
+    return (int32_t)v;
+}
 
 /* Charge la politique depuis un fichier. Retourne 0 si elle est valide. */
 static int charger_politique(const char *chemin) {
@@ -62,7 +77,7 @@ static int32_t evaluer(const eclat_ipc_request_t *req, int32_t *payload) {
     eclat_decision_t d = eclat_decide(&g_policy, &r);
     *payload = 0;
     if (d == ECLAT_CAP_OK && req->cap == (uint32_t)ECLAT_CAP_READ_SENSOR) {
-        *payload = ECHANTILLON_CAPTEUR;
+        *payload = lire_capteur();
     }
     return (int32_t)d;
 }
@@ -157,6 +172,19 @@ int main(int argc, char **argv) {
     }
     int chid = attach->chid;
     printf("courtier: à l'écoute sur %s (canal %d)\n", ECLAT_IPC_NAME, chid);
+    /* Publication du chemin /dev/cap : le gestionnaire de chemins fait pointer le chemin sur
+     * NOTRE canal. C'est le mécanisme prévu pour un serveur qui publie un chemin, et il évite
+     * d'écrire un gestionnaire de ressources complet (iofunc) pour un service de messages.
+     * Le nom « cap » reste disponible en repli : si /dev n'est pas modifiable, le client
+     * name_open() fonctionne toujours. */
+    if (pathmgr_link(ECLAT_IPC_PATH, 0, getpid(), chid, 0, _FTYPE_ANY, 0) == 0) {
+        printf("courtier: chemin publié : %s\n", ECLAT_IPC_PATH);
+    } else {
+        /* Le lien existe parfois même si le retour est négatif : on ne conclut pas, on dit ce
+         * qu'on a tenté, et le nom « cap » demeure le repli inconditionnel. */
+        printf("courtier: publication de %s : retour %d (errno %d) — repli sur le nom %s\n",
+               ECLAT_IPC_PATH, -1, errno, ECLAT_IPC_NAME);
+    }
     fflush(stdout);
 
     servir(chid);

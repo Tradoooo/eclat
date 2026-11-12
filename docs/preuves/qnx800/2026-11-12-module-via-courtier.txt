@@ -1,5 +1,5 @@
 # Éclat — les imports du module passent par le courtier
-# Capturée le 2026-11-12T20:28:20+01:00 par tools/demo-module-via-broker.sh
+# Capturée le 2026-11-12T21:18:33+01:00 par tools/demo-module-via-broker.sh
 # Hôte : 127.0.0.1:2280 (SSH), cible /tmp/eclat-broker, architecture x86_64
 # eclat-run est lancé avec --broker cap : chaque import du module devient un MsgSend.
 # Le bilan (appels, refus) est donc la trace du courtier, d'un AUTRE processus.
@@ -14,6 +14,7 @@ QNX qnxwamr 8.0.0 2026/06/05-16:26:03EDT x86pc x86_64
 ════════ Démarrage du courtier ════════
 courtier: politique « via-broker » chargée (2 règles allow, 0 règles deny)
 courtier: à l'écoute sur cap (canal 1)
+courtier: publication de /dev/cap : retour -1 (errno 0) — repli sur le nom cap
 
 ════════ ECL-04 via courtier : module honnête ════════
 [eclat log niv=1] honnete : demarrage
@@ -24,8 +25,8 @@ module « honneste.wasm » (827 octets) sous politique « via-broker »
 --- bilan ---
 appels au courtier : 4
 refus              : 0
-cpu mesuré         : 75309 ns
-temps écoulé       : 428527 ns
+cpu mesuré         : 77937 ns
+temps écoulé       : 546609 ns
 tué par le budget  : non
 code du module     : 0
 code=0
@@ -43,8 +44,8 @@ module « hostile.wasm » (850 octets) sous politique « via-broker »
 --- bilan ---
 appels au courtier : 6
 refus              : 4
-cpu mesuré         : 196316 ns
-temps écoulé       : 1125658 ns
+cpu mesuré         : 201674 ns
+temps écoulé       : 1025578 ns
 tué par le budget  : non
 code du module     : 0
 code=0

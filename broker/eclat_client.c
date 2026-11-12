@@ -11,6 +11,7 @@
 
 #include "eclat/cap_decision.h"
 
+#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/dispatch.h> /* name_open */
@@ -45,8 +46,12 @@ static int32_t demander(const char *libelle, uint32_t op, uint32_t cap, int32_t 
 }
 
 int main(void) {
-    /* name_open donne le canal du courtier : un « coid » utilisable avec MsgSend. */
-    coid = name_open(ECLAT_IPC_NAME, 0);
+    /* Le chemin /dev/cap d'abord (c'est ce qu'un client QNX attend d'un gestionnaire de
+     * ressources) ; le nom « cap » en repli si /dev n'a pas pu être publié. */
+    coid = open(ECLAT_IPC_PATH, O_RDWR);
+    if (coid < 0) {
+        coid = name_open(ECLAT_IPC_NAME, 0);
+    }
     if (coid < 0) {
         printf("client: ouverture de %s impossible\n", ECLAT_IPC_NAME);
         return 2;
@@ -57,7 +62,14 @@ int main(void) {
     demander("ping", ECLAT_OP_PING, 0, -1, 0);
 
     printf("— demandes autorisées —\n");
-    demander("cap_read_sensor(id=1)", ECLAT_OP_REQUEST, ECLAT_CAP_READ_SENSOR, 1, 0);
+    /* Le capteur est vivant : quatre lectures espacées montrent le signal qui évolue. */
+    demander("cap_read_sensor(id=1) t0", ECLAT_OP_REQUEST, ECLAT_CAP_READ_SENSOR, 1, 0);
+    usleep(250000);
+    demander("cap_read_sensor(id=1) t0+250ms", ECLAT_OP_REQUEST, ECLAT_CAP_READ_SENSOR, 1, 0);
+    usleep(250000);
+    demander("cap_read_sensor(id=1) t0+500ms", ECLAT_OP_REQUEST, ECLAT_CAP_READ_SENSOR, 1, 0);
+    usleep(250000);
+    demander("cap_read_sensor(id=1) t0+750ms", ECLAT_OP_REQUEST, ECLAT_CAP_READ_SENSOR, 1, 0);
 
     printf("— demandes refusées —\n");
     demander("cap_net_send(chan=9)", ECLAT_OP_REQUEST, ECLAT_CAP_NET_SEND, 9, 0);

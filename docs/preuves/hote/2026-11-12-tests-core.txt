@@ -1,8 +1,3 @@
-cc -std=c11 -O2 -Wall -Wextra -Werror -Icore/include  core/tests/test_budget.c build/libeclat.a -o build/bin/test_budget
-cc -std=c11 -O2 -Wall -Wextra -Werror -Icore/include  core/tests/test_decision.c build/libeclat.a -o build/bin/test_decision
-cc -std=c11 -O2 -Wall -Wextra -Werror -Icore/include  core/tests/test_log.c build/libeclat.a -o build/bin/test_log
-cc -std=c11 -O2 -Wall -Wextra -Werror -Icore/include  core/tests/test_policy.c build/libeclat.a -o build/bin/test_policy
-cc -std=c11 -O2 -Wall -Wextra -Werror -Icore/include  core/tests/test_sha256.c build/libeclat.a -o build/bin/test_sha256
 == build/bin/test_budget ==
 OK 36 checks
 == build/bin/test_decision ==

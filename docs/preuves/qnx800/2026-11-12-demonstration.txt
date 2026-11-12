@@ -1,5 +1,5 @@
 # Éclat — démonstration sur cible QNX 8.0
-# Capturée le 2026-11-12T20:28:12+01:00 par tools/demo-on-qnx.sh
+# Capturée le 2026-11-12T21:18:15+01:00 par tools/demo-on-qnx.sh
 # Hôte : 127.0.0.1:2280 (SSH), cible /tmp/eclat, architecture x86_64
 # Binaire : build/qnx-x86_64/eclat-run (656040 octets)
 # Aucune sortie n'est retouchée : c'est la console de la cible, stderr fusionné sur place.
@@ -19,8 +19,8 @@ module « honneste.wasm » (827 octets) sous politique « honneste »
 --- bilan ---
 appels au courtier : 4
 refus              : 0
-cpu mesuré         : 672702 ns
-temps écoulé       : 1199254 ns
+cpu mesuré         : 73574 ns
+temps écoulé       : 441235 ns
 tué par le budget  : non
 code du module     : 0
 code=0
@@ -37,8 +37,8 @@ module « hostile.wasm » (850 octets) sous politique « hostile »
 --- bilan ---
 appels au courtier : 6
 refus              : 4
-cpu mesuré         : 175346 ns
-temps écoulé       : 1137669 ns
+cpu mesuré         : 154665 ns
+temps écoulé       : 657173 ns
 tué par le budget  : non
 code du module     : 0
 code=0
@@ -56,7 +56,7 @@ temps écoulé       : 0 ns
 tué par le budget  : OUI
 code du module     : -1
 code=0
-    1.31s real     1.29s user     0.00s system
+    1.40s real     1.36s user     0.00s system
 
 ════════ ECL-07 : module falsifié (1 octet modifié) ════════
 REFUSÉ (-2) : empreinte du module différente de la politique (32e7e8db3f1118cf373418d5d46ce6a3b1a956ac2348e311c553dcc6cd6a05f6...)

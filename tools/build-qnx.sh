@@ -127,11 +127,14 @@ BIN="$OUT/eclat-run"
   "$OUT"/obj/main/core_src_*.o "$OUT/obj/broker/eclat_broker.o" -lsocket -lm -o "$OUT/eclat-broker"
 "$QNX_HOST/usr/bin/qcc" "-V$VARIANT" "${CFLAGS_QNX[@]}" \
   "$OUT"/obj/main/core_src_*.o "$OUT/obj/broker/eclat_client.o" -lsocket -lm -o "$OUT/eclat-client"
+# La boucle de contrôle 1 kHz : c'est un point d'entrée séparé.
+"$QNX_HOST/usr/bin/qcc" "-V$VARIANT" "${CFLAGS_QNX[@]}" \
+  "$OUT"/obj/broker/boucle.o -lsocket -lm -o "$OUT/eclat-boucle"
 
 echo
 echo "== résultat =="
 file "$BIN" | cut -c1-140
-ls -la "$BIN" "$OUT/eclat-broker" "$OUT/eclat-client"
+ls -la "$BIN" "$OUT/eclat-broker" "$OUT/eclat-client" "$OUT/eclat-boucle"
 echo
 echo "Binaires QNX produits dans : $OUT"
 echo "Interpréteur attendu : /usr/lib/ldqnx-64.so.2"

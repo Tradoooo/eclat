@@ -13,6 +13,7 @@
 
 #include "eclat_ipc.h"
 
+#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/dispatch.h>
@@ -47,7 +48,12 @@ static int32_t qnx_decide(void *ctx, eclat_cap_t cap, int32_t id, int32_t value_
 
 int eclat_transport_qnx_init(eclat_transport_qnx_ctx_t *qc, eclat_transport_t *t,
                               const char *nom) {
-    qc->coid = name_open(nom, 0);
+    /* Le chemin /dev/cap d'abord (ce qu'un client attend d'un gestionnaire de ressources) ;
+     * le nom en repli si le chemin n'a pas pu être publié. */
+    qc->coid = open(ECLAT_IPC_PATH, O_RDWR);
+    if (qc->coid < 0) {
+        qc->coid = name_open(nom, 0);
+    }
     if (qc->coid < 0) {
         fprintf(stderr, "eclat: courtier « %s » introuvable\n", nom);
         return -1;

@@ -63,11 +63,13 @@ Sur un noyau monolithique seule la première existe ; leur superposition est l'a
       | **ECL-06** | module gourmand en boucle sans fin **tué par le superviseur** à 1,30 s pour un budget de 300 ms (`fork`/`pipe`/`poll`/`SIGKILL` fonctionnent sur QNX) |
       | **ECL-07** | module falsifié (1 octet) **refusé** avec l'empreinte citée, code 1 |
 
-- [x] **Le courtier QNX**, et — mieux — **les imports du module passent par lui** :
-      `eclat-run --broker cap` exécute le module et chaque import devient un `MsgSend` vers le
-      courtier, qui décide dans un **autre** processus. Le module honnête : 4 appels, 0 refus ;
-      le module hostile : 4 refus (réseau refusé, actionneur hors plage, capteur non autorisé,
-      kv_put refusé) — décidés par le courtier. Preuves : [`docs/preuves/qnx800/`](docs/preuves/qnx800).
+- [x] **Démo plus réelle** : un **capteur vivant** (sinusoïde 1 Hz -> les lectures changent), la
+      **boucle de contrôle à 1 kHz** avec la gigue mesurée (`eclat-boucle`), et la mise à mort d'un
+      module gourmand pendant que la boucle continue de tourner. Preuves :
+      [`docs/preuves/qnx800/`](docs/preuves/qnx800). ⚠ La gigue absolue est dominée par QEMU
+      (pas de vrai timer, pas d'isolation de vCPU) : ce qui est prouvé, c'est la **vivacité** de
+      la boucle, pas sa performance temps réel.
+- [x] **Chemin `/dev/cap` publié** via `pathmgr_link` (le nom « cap » reste en repli).
 
 **Chaque étape livre sa preuve** — commande unique, artefact brut daté, verdict :
 

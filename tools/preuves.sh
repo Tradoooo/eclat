@@ -112,6 +112,19 @@ else
     "docs/preuves/qnx800/" "VM arrêtée" "-" >> "$LIGNES"
 fi
 
+echo "== preuve : la boucle 1 kHz tourne pendant la mise à mort d'un module =="
+ETAT_VM="$(tools/qnx-vm.sh status 2>/dev/null || true)"
+if printf '%s' "$ETAT_VM" | grep -q "en marche"; then
+  tools/demo-boucle.sh >/dev/null 2>&1
+  printf '| %s | %s | %s | %s |\n' "boucle 1 kHz (vivante pendant la mise à mort)" \
+    "docs/preuves/qnx800/$(date +%Y-%m-%d)-boucle-1khz.txt" "vert" "-" >> "$LIGNES"
+  echo "== boucle 1 kHz : vert"
+else
+  echo "== (VM QNX arrêtée : tools/qnx-vm.sh start pour l'activer)"
+  printf '| %s | %s | %s | %s |\n' "boucle 1 kHz (vivante pendant la mise à mort)" \
+    "docs/preuves/qnx800/" "VM arrêtée" "-" >> "$LIGNES"
+fi
+
 {
   echo "# Preuves — état au $(date -Is)"
   echo

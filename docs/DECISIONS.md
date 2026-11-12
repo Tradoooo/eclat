@@ -1,5 +1,34 @@
 # DECISIONS — journal des décisions de conception
 
+## 2026-11-12 — Démo plus réelle : capteur vivant, boucle 1 kHz, chemin /dev/cap
+
+**Décision.** La démonstration gagne en réalisme sur trois fronts :
+
+1. **Capteur vivant.** Le courtier ne renvoie plus une constante : `cap_read_sensor` calcule une
+   sinusoïde de 1 Hz (centrée sur 3000 milli-unités, amplitude 1000) lue à l'instant de la
+   demande via `ClockTime`. Quatre lectures espacées donnent quatre valeurs différentes — c'est
+   un signal, pas une constante. Le module lit un capteur qui bouge.
+2. **Boucle de contrôle 1 kHz** (`broker/boucle.c`). Une tâche réveillée par impulsion QNX
+   (`timer_create` + `SIGEV_PULSE` + `MsgReceive` sur un canal), priorité 21, qui à chaque tic
+   lit le capteur **via le courtier** (le chemin réel) et mesure sa gigue par `ClockTime`.
+   Histogramme min/p50/p99/p99.9 + taux d'échéances au-delà de 1,5 ms.
+3. **Chemin `/dev/cap`.** `pathmgr_link()` publie le chemin servi par notre canal, à côté du nom
+   « cap » (`name_attach`) qui demeure le repli inconditionnel. Le client et le transport ouvrent
+   `/dev/cap` d'abord, puis retombent sur le nom.
+
+**Piège découvert sur `pathmgr_link`.** Son retour est trompeur sur QEMU : le chemin apparaît
+bel et bien au `ls` (entrée `--x`, cookie comme taille) alors que la fonction a rendu un retour
+négatif avec `errno` à 0. Le code ne conclut donc pas sur la seule valeur de retour : il tente,
+puis le nom « cap » reste le repli. Un gestionnaire de ressources complet (`resmgr_attach` +
+`iofunc`) reste possible, mais `pathmgr_link` suffit pour un service de messages.
+
+**Mesure honnête de la gigue.** Sous QEMU/KVM, la gigue absolue est dominée par l'émulation :
+p50 ≈ 100–700 µs, p99 en millisecondes, et la phase « pendant la mise à mort d'un module » a
+même été plus propre que la baseline — preuve que le bruit est l'émulateur, pas le module. Ce qui
+est prouvé, archives à l'appui : la boucle tourne **2999/2999** tics dans les trois phases
+(à vide, pendant la mise à mort du gourmand, après). Les chiffres exacts de gigue demandent une
+cible matérielle — dit noir sur blanc dans l'artefact.
+
 ## 2026-11-12 — Les imports du module passent par le courtier, dans un autre processus
 
 **Décision.** Le runtime ne décide plus rien lui-même : un **transport** porte chaque import.

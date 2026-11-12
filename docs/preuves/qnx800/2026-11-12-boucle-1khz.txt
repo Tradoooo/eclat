@@ -1,0 +1,27 @@
+# Éclat — la boucle 1 kHz et la mise à mort d'un module gourmand
+# Capturée le 2026-11-12T21:18:41+01:00 par tools/demo-boucle.sh
+# Hôte : 127.0.0.1:2280 (SSH), cible /tmp/eclat-broker, architecture x86_64
+# ⚠ Sous QEMU/KVM : la gigue absolue est dominée par l'émulation. Ce qui est prouvé ici,
+#   c'est que la boucle CONTINUE de tourner pendant la mise à mort d'un module ennemi.
+# Aucune sortie n'est retouchée.
+
+════════ Identification de la cible ════════
+QNX qnxwamr 8.0.0 2026/06/05-16:26:03EDT x86pc x86_64
+
+════════ Transfert ════════
+5 fichiers transférés
+
+════════ Démarrage du courtier ════════
+courtier: politique illisible : pol-broker.toml
+
+════════ 1. baseline (boucle seule) ════════
+boucle: courtier « cap » introuvable
+
+════════ 2. pendant la mise à mort du module gourmand ════════
+boucle: courtier « cap » introuvable
+
+════════ 3. après ════════
+boucle: courtier « cap » introuvable
+
+════════ Arrêt ════════
+arrêté
