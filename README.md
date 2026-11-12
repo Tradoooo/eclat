@@ -43,17 +43,23 @@ Sur un noyau monolithique seule la première existe ; leur superposition est l'a
 **SDP QNX 8.0 installé le 12/11 (`~/qnx800`, `qcc` 12.2.0) — l'essai bloquant E2 est tranché :**
 
 - [x] **E2 : OUI.** Les 8 fichiers de la couche plateforme retenus par le cmake amont compilent
-      avec `qcc` sur `nto x86_64` **et** `nto aarch64le` — **16/16** avec un correctif amont d'une
-      ligne ([`upstream/wamr/patches/`](upstream/wamr/patches), [`PORTING-NOTES.md`](upstream/wamr/PORTING-NOTES.md)).
+      avec `qcc` sur `nto x86_64` **et** `nto aarch64le` — **16/16** avec les correctifs amont
+      ([`upstream/wamr/patches/`](upstream/wamr/patches), [`PORTING-NOTES.md`](upstream/wamr/PORTING-NOTES.md)).
       Reproductible : `source tools/setup-sdp.sh && tools/e2-probe.sh --patched`.
+- [x] **WAMR 2.4.5 compile ET se lie pour QNX** : `libiwasm.a` (759 Ko) et l'interpréteur `iwasm`
+      (ELF QNX, `interpreter /usr/lib/ldqnx-64.so.2`). Deux correctifs amont suffisent :
+      `MAP_32BIT` (drapeau `mmap` propre à Linux) et `-ldl -lpthread` (inexistants sur QNX).
+- [x] **`platform/qnx/`** : horloge native `ClockTime()`, CPU par `CLOCK_THREAD_CPUTIME_ID`.
+- [x] **`eclat-run` construit pour QNX 8.0** sur les deux cibles (`make qnx`, `make qnx QNX_ARCH=aarch64`) :
+      382 Ko, 3 bibliothèques dynamiques seulement, symboles du courtier et du runtime présents.
 
 **Reste à faire (plus de bloquant, du travail) :**
 
-- [ ] `platform/qnx/` : la cible QNX du dépôt (la sonde compile la couche `linux` + `common/posix`).
-- [ ] Lier le cœur de l'interpréteur pour QNX, exécuter un `.wasm` sur cible (ECL-10).
+- [ ] **Exécuter sur une cible QNX** : l'image QEMU du SDP est présente mais son `ifs.bin` fait
+      0 octet (construction interrompue par une saturation disque) — à reconstruire.
 - [ ] `broker/` : le courtier en gestionnaire de ressources, imports servis par `MsgSend` (ECL-11).
 - [ ] Politique de sécurité `secpol` + banc de latence sur cible (ECL-12 à ECL-14).
-- [ ] Demande de fusion amont (ECL-16) — le correctif `MAP_32BIT` est prêt et testé.
+- [ ] Demande de fusion amont (ECL-16) — les deux correctifs sont prêts et testés.
 
 ## Structure
 

@@ -71,8 +71,15 @@ for arg in "$@"; do
 done
 
 RESTAURER=""
+# La sonde doit être déterministe : on part toujours d'un clone amont vierge, que les correctifs
+# aient déjà été appliqués par tools/build-qnx.sh ou non. Sans ça, le verdict dépendrait de
+# l'état du dépôt au lieu de dépendre du drapeau --patched.
+if ! git -C "$WAMR" diff --quiet 2>/dev/null; then
+  echo "== clone amont modifié : restauration à l'état vierge =="
+  git -C "$WAMR" checkout -- . 2>/dev/null
+fi
+
 if [ "$APPLIQUE_PATCH" -eq 1 ]; then
-  git -C "$WAMR" diff --quiet || { echo "KO : clone amont déjà modifié, refuse d'appliquer" >&2; exit 2; }
   for p in "$RACINE"/upstream/wamr/patches/*.patch; do
     [ -e "$p" ] || continue
     echo "== application de $(basename "$p")"

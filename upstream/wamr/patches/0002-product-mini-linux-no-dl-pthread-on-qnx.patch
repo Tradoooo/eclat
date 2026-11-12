@@ -1,0 +1,35 @@
+From: Baptiste Faisy <baptiste.faisy@gmail.com>
+Subject: [PATCH] product-mini/linux: do not link -ldl/-lpthread on QNX
+
+QNX provides pthreads and dlopen() inside libc: the SDP 8.0 target ships no
+libpthread and no libdl, so linking them fails with
+
+    ld: cannot find -ldl
+    ld: cannot find -lpthread
+
+Keep the existing link line everywhere else and drop those two flags when
+CMAKE_SYSTEM_NAME is QNX. -lm is retained: QNX does ship libm.so.3.
+
+Verified with SDP 8.0 (qcc 12.2.0, -Vgcc_ntox86_64): the interpreter links
+and produces an ELF PIE with interpreter /usr/lib/ldqnx-64.so.2, needing only
+libm.so.3, libc.so.6 and libgcc_s.so.1.
+
+Applies to WAMR-2.4.5 (commit 25bd7eb63e828e4bd242cc9b38d260b4b31c6605).
+diff --git a/product-mini/platforms/linux/CMakeLists.txt b/product-mini/platforms/linux/CMakeLists.txt
+index cef8329..4b2a5d2 100644
+--- a/product-mini/platforms/linux/CMakeLists.txt
++++ b/product-mini/platforms/linux/CMakeLists.txt
+@@ -192,7 +192,12 @@ set_target_properties (vmlib PROPERTIES
+   POSITION_INDEPENDENT_CODE ON
+ )
+ 
+-target_link_libraries (vmlib ${LLVM_AVAILABLE_LIBS} ${UV_A_LIBS} -lm -ldl -lpthread)
++if (CMAKE_SYSTEM_NAME STREQUAL "QNX")
++  # QNX provides pthreads and dlopen() inside libc: there is no libpthread nor libdl.
++  target_link_libraries (vmlib ${LLVM_AVAILABLE_LIBS} ${UV_A_LIBS} -lm)
++else ()
++  target_link_libraries (vmlib ${LLVM_AVAILABLE_LIBS} ${UV_A_LIBS} -lm -ldl -lpthread)
++endif ()
+ 
+ install (TARGETS vmlib
+   EXPORT iwasmTargets

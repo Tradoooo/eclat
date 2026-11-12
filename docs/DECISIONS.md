@@ -1,5 +1,32 @@
 # DECISIONS — journal des décisions de conception
 
+## 2026-11-12 — QNX n'a ni `libpthread` ni `libdl` : deuxième correctif amont
+
+**Décision.** `patches/0002-product-mini-linux-no-dl-pthread-on-qnx.patch` retire `-ldl` et
+`-lpthread` de l'édition de liens quand `CMAKE_SYSTEM_NAME` vaut `QNX`, et conserve `-lm`.
+
+**Pourquoi.** La bibliothèque WAMR entière compilait pour QNX (40 objets, 0 erreur) mais le
+binaire ne se liait pas :
+
+```
+x86_64-pc-nto-qnx8.0.0-ld: cannot find -ldl
+x86_64-pc-nto-qnx8.0.0-ld: cannot find -lpthread
+```
+
+Vérifié dans le SDP : `find $QNX_TARGET -name 'libpthread*' -o -name 'libdl*'` → rien. Sur QNX,
+pthreads et `dlopen()` sont dans la libc. `libm` existe (`libm.so.3`), d'où le `-lm` conservé —
+confirmé par les dépendances du binaire final : `libm.so.3`, `libc.so.6`, `libgcc_s.so.1`, trois
+seulement.
+
+**Conséquence outillage.** `cmake` 3.30.5 (hôte) n'a pas de module `Platform/QNX` : il faut
+cmake ≥ 3.31. Plutôt que toucher au système, un cmake 4.4.4 est installé dans un venv Python
+isolé (`.deps/cmake-venv`, gitignoré), avec `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` pour que cmake 4
+accepte les `cmake_minimum_required` anciens de WAMR.
+
+**Piège C.** `-D_QNX_SOURCE` passé globalement **et** `#define _QNX_SOURCE` dans le fichier
+produit une redéfinition, donc une erreur avec `-Werror`. Le define du fichier est désormais
+gardé par `#ifndef`.
+
 ## 2026-11-12 — E2 tranché : OUI, avec un correctif amont d'une ligne
 
 **Décision.** Le projet continue. L'essai bloquant E2 du cahier des charges (« WAMR compile-t-il

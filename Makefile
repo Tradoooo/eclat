@@ -25,6 +25,7 @@ WASM_PATH := /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 MODULES   := honneste gourmand hostile
 WASM_BINS := $(patsubst %,$(BUILD)/wasm/%.wasm,$(MODULES))
 RUN_BIN   := $(BUILD)/bin/eclat-run
+QNX_ARCH ?= x86_64
 RUNTIME_CFLAGS := -std=c11 -O2 -Wall -Wextra -Werror -Icore/include -Iplatform/include \
                   -Iruntime -I$(WAMR_INC)
 
@@ -34,7 +35,7 @@ TEST_SRCS := $(sort $(wildcard core/tests/*.c))
 TEST_BINS := $(patsubst core/tests/%.c,$(BUILD)/bin/%,$(TEST_SRCS))
 DECIDE_BIN := $(BUILD)/bin/eclat-decide
 
-.PHONY: all core test test-san decide python python-tests differential fuzz mutants bench deps wasm runtime test-wasm e2 clean size-check spdx
+.PHONY: all core test test-san decide python python-tests differential fuzz mutants bench deps wasm runtime test-wasm e2 qnx clean size-check spdx
 
 all: core
 
@@ -126,6 +127,11 @@ test-wasm: runtime wasm
 # Nécessite le SDP : source tools/setup-sdp.sh d'abord. --patched applique nos correctifs amont.
 e2:
 	tools/e2-probe.sh $(E2_ARGS)
+
+# Construction pour la cible QNX 8.0 (lot L7). Exige le SDP : source tools/setup-sdp.sh.
+# QNX_ARCH=x86_64 (défaut) ou aarch64.
+qnx:
+	tools/build-qnx.sh $(QNX_ARCH)
 
 size-check:
 	python3 tools/sizecheck.py

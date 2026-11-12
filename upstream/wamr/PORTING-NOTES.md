@@ -37,21 +37,40 @@ construit.
 
 ## Résultat
 
-| Cible | Sans correctif | Avec `patches/0001` |
+| Cible | Sans correctif | Avec les correctifs |
 |---|---|---|
 | `nto x86_64` (`-Vgcc_ntox86_64`) | 7 / 8 | **8 / 8** |
 | `nto aarch64le` (`-Vgcc_ntoaarch64le`) | 8 / 8 | **8 / 8** |
 
 **Verdict E2 : OUI.** La couche d'abstraction POSIX de WAMR compile pour QNX 8.0 avec **un seul
-correctif d'une ligne**.
+correctif d'une ligne** (`patches/0001`).
 
 Drapeaux utilisés : `-D_QNX_SOURCE -DWASM_HAVE_MREMAP=0` et les en-têtes
 `platform/linux`, `platform/include`, `common/posix`, `common/libc-util`, `core/shared/utils`,
 `core/iwasm/include`, `core/iwasm/common`.
 
-## Le seul écart observé
+## Et au-delà de E2 : WAMR entier compile **et se lie** pour QNX 8.0
 
-**`MAP_32BIT` n'existe pas sur QNX.** Message exact, `posix_memmap.c:88`, cible x86_64 :
+E2 ne portait que sur la couche plateforme. Depuis, la chaîne complète est passée
+(`tools/build-qnx.sh`, cmake 4.4.4 + `upstream/qnx-ports/qnx.nto.toolchain.cmake`) :
+
+| Artefact | Taille | Vérification |
+|---|---|---|
+| `libiwasm.a` pour QNX x86_64 | 758 928 o | archive produite par cmake, 0 erreur |
+| `iwasm` (interpréteur) | 265 384 o | `ELF 64-bit LSB pie, interpreter /usr/lib/ldqnx-64.so.2` |
+| `eclat-run` (chargeur Éclat) x86_64 | 382 056 o | idem ; symboles `eclat_decide`, `eclat_policy_parse`, `eclat_sha256`, `eclat_platform_get`, `eclat_runtime_run`, `wasm_runtime_load` présents |
+| `eclat-run` aarch64 | — | construit par la même chaîne (`make qnx QNX_ARCH=aarch64`) |
+
+Dépendances dynamiques du binaire : `libm.so.3`, `libc.so.6`, `libgcc_s.so.1` — **trois
+seulement**, ce qui confirme qu'aucune `libdl` ni `libpthread` n'est requise sur QNX.
+
+Un second correctif a été nécessaire pour l'édition de liens (`patches/0002`) : voir ci-dessous.
+
+## Les deux écarts observés
+
+### 1. `MAP_32BIT` n'existe pas sur QNX (`patches/0001`)
+
+Message exact, `posix_memmap.c:88`, cible x86_64 :
 
 ```
 error: 'MAP_32BIT' undeclared (first use in this function); did you mean 'MMAP_MAP_32BIT'?
@@ -73,16 +92,33 @@ L'amont n'exclut que `__APPLE__` : toute autre cible non-Linux qui définit `BUI
 casse. Le `<sys/mman.h>` de QNX ne définit pas `MAP_32BIT`. La variante `aarch64le` n'était pas
 touchée, `BUILD_TARGET_X86_64` n'y étant pas posé.
 
-**Correctif retenu** (`upstream/wamr/patches/0001-platform-posix-gate-MAP_32BIT-on-feature-test.patch`) :
-tester la présence de la fonctionnalité plutôt que tenir une liste noire de systèmes.
+**Correctif retenu** : tester la présence de la fonctionnalité plutôt que tenir une liste noire
+de systèmes — `#if defined(MAP_32BIT)`. Strictement meilleur que l'existant : l'optimisation est
+conservée là où elle existe (Linux) et toutes les autres cibles compilent sans modification.
 
-```c
-#if defined(MAP_32BIT)
+### 2. QNX n'a ni `libpthread` ni `libdl` (`patches/0002`)
+
+`product-mini/platforms/linux/CMakeLists.txt` lie en dur `-lm -ldl -lpthread`. À l'édition de
+liens sur QNX :
+
+```
+x86_64-pc-nto-qnx8.0.0-ld: cannot find -ldl
+x86_64-pc-nto-qnx8.0.0-ld: cannot find -lpthread
 ```
 
-Ce correctif est strictement meilleur que l'existant : il conserve l'optimisation là où elle
-existe (Linux) et laisse toutes les autres cibles compiler sans modification. Vérifié :
-`git apply --check` passe sur WAMR-2.4.5, et les deux cibles QNX compilent après application.
+Vérifié dans le SDP 8.0 : `find $QNX_TARGET -name 'libpthread*' -o -name 'libdl*'` ne renvoie
+**rien** — sur QNX, pthreads et `dlopen()` sont dans la libc. `libm` existe en revanche
+(`libm.so.3`), donc `-lm` est conservé.
+
+**Correctif retenu** : garder la ligne de liens existante partout ailleurs, et retirer `-ldl`
+et `-lpthread` quand `CMAKE_SYSTEM_NAME` vaut `QNX`.
+
+### Écart d'outillage (pas un écart de code)
+
+`cmake` 3.30.5 (celui de l'hôte) n'a **pas** de module `Platform/QNX` : il faut cmake ≥ 3.31.
+Le dépôt installe un cmake 4.4.4 isolé dans `.deps/cmake-venv` (venv Python, aucun paquet
+système touché), et passe `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` parce que cmake 4.x rejette les
+`cmake_minimum_required` anciens de WAMR.
 
 ## Écarts anticipés qui ne se sont PAS produits
 
@@ -104,23 +140,27 @@ dans `$QNX_TARGET/usr/include`. QNX se déclare conforme POSIX et le vérifie ic
 
 ## Ce qui n'est PAS encore fait
 
-Honnêteté sur la portée du verdict :
+Honnêteté sur la portée du résultat :
 
-1. **Compilation d'objets seulement.** Rien n'est encore **lié** : aucune bibliothèque, aucun
-   binaire QNX n'existe à ce stade.
-2. **Le cœur de l'interpréteur n'est pas compilé** (`core/iwasm/interpreter`, `core/shared/utils`,
-   `wasm_runtime`…) — seule la couche plateforme l'a été. C'était la question posée par E2, pas
-   le portage complet.
-3. **Aucun module `.wasm` n'a été exécuté sur QNX.** Les 12 vérifications d'intégration
+1. **Rien n'a été exécuté sur QNX.** Les binaires sont construits et vérifiés comme ELF QNX
+   (`interpreter /usr/lib/ldqnx-64.so.2`), mais aucune cible QNX 8.0 n'a encore lancé
+   `eclat-run`. L'image QEMU livrée par le SDP (`~/qnx800/images/qemu/`) est présente mais son
+   `ifs.bin` fait 0 octet : sa construction a été interrompue par une saturation du disque.
+2. **Aucun module `.wasm` n'a tourné sur QNX.** Les 12 vérifications d'intégration
    (`make test-wasm`) tournent sur Linux.
-4. **`platform/qnx/` n'existe pas encore** : la sonde compile la couche `linux` + `common/posix`,
-   ce qui prouve la réutilisabilité mais ne constitue pas encore la cible QNX du dépôt.
-5. Le banc de latence sur cible, la politique `secpol`, le courtier en gestionnaire de
-   ressources : tout cela reste à faire (lots L7 à L9).
+3. **`platform/qnx/` existe et compile** (horloge native `ClockTime`, CPU par
+   `CLOCK_THREAD_CPUTIME_ID`), mais la couche plateforme **WAMR** utilisée est encore
+   `platform/linux` + `common/posix` — c'est ce que E2 a validé. Une couche `platform/qnx`
+   dédiée côté WAMR reste à écrire si l'amont la préfère.
+4. Le courtier en gestionnaire de ressources (`broker/`, `MsgSend`/`MsgReply`), la politique
+   `secpol`, le banc de latence sur cible et la supervision HAM : tout cela reste à faire
+   (lots L8, L9).
+5. `slogger2.h` est absent des en-têtes du SDP installé : le journal des décisions part sur
+   stderr, pas vers le journal système de la cible. Branchement à faire.
 
 Ce qui a changé, c'est le **risque** : le cahier des charges conditionnait la poursuite du projet
-à E2 (« sinon on arrête là »). E2 est positif, avec un correctif d'une ligne. La suite est du
-travail, plus une inconnue bloquante.
+à E2 (« sinon on arrête là »). E2 est positif avec deux correctifs minimes, et l'interpréteur
+complet se lie pour les deux cibles. La suite est du travail, plus une inconnue bloquante.
 
 ## Environnement de mesure
 
