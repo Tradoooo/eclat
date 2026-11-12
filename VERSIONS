@@ -26,10 +26,17 @@ compilateur     = clang-23 (--target=wasm32)   # VÉRIFIÉ : bin/clang -> clang-
 
 [qnx]
 sdp           = 8.0
+sdp_installe  = OUI                   # VÉRIFIÉ le 2026-11-12 : /home/baptiste/qnx800 (5,9 Go)
+sdp_chemin    = /home/baptiste/qnx800 # QNX_HOST=host/linux/x86_64, QNX_TARGET=target/qnx
+qcc           = 12.2.0                # VÉRIFIÉ : qcc --version ; binutils 2.43.0, gdb 14.2
+variantes     = gcc_ntox86_64 (défaut), gcc_ntoaarch64le, + variantes _cxx/_gpp   # VÉRIFIÉ : qcc -V
+cibles        = x86_64, aarch64le     # VÉRIFIÉ : ls $QNX_TARGET
+licence       = CN52-415Z-T3YL-2B9S-75E7 — QNX SDP 8.0 Education (Development Seat with IDE), Activated
+classe        = Non-Commercial/Academic License Class   # développement : termes sur qnx.com/nc_qdl
+installeur    = QNX Software Center 2.0.4 build 202501021438 (linux.run, MD5 bca161a97ab3e14189cf8e7c8227fb7d vérifié conforme)
 arbre_ports   = https://github.com/qnx-ports/build-files
-cibles        = aarch64le, x86_64     # VÉRIFIÉ : mêmes cibles que ports/zlib (nto-aarch64-le, nto-x86_64-o)
-compilateur   = qcc / q++             # VÉRIFIÉ dans ports/zlib/qnx.nto.toolchain.cmake
-sdp_installe  = non                   # BLOQUANT pour les lots L7 à L10 et pour l'essai E2
+essai_E2      = OUI — 16/16 fichiers de la couche POSIX compilent avec qcc sur les deux cibles,
+                avec UN correctif amont d'une ligne (upstream/wamr/patches/0001-*.patch)
 
 [hote_developpement]
 os            = Ubuntu 24.04 (x86_64)

@@ -1,5 +1,51 @@
 # DECISIONS — journal des décisions de conception
 
+## 2026-11-12 — E2 tranché : OUI, avec un correctif amont d'une ligne
+
+**Décision.** Le projet continue. L'essai bloquant E2 du cahier des charges (« WAMR compile-t-il
+pour QNX ? ») est **positif** : les 8 fichiers de la couche plateforme que le cmake amont retient
+pour notre configuration compilent avec `qcc` 12.2.0 sur **les deux cibles** (`nto x86_64` et
+`nto aarch64le`), après application d'un unique correctif d'une ligne.
+
+**Mesure.** `tools/e2-probe.sh` : 15/16 sans correctif, **16/16 avec**
+`upstream/wamr/patches/0001-platform-posix-gate-MAP_32BIT-on-feature-test.patch`
+(`git apply --check` vérifié sur WAMR-2.4.5). Seul écart réel observé : `MAP_32BIT`, drapeau
+`mmap` propre à Linux, que l'amont n'exclut que pour `__APPLE__`. Le correctif remplace la liste
+noire d'OS par un test de présence de la fonctionnalité — strictement meilleur pour toutes les
+cibles, pas seulement QNX.
+
+**Erreur de méthode corrigée au passage.** La première version de la sonde compilait 11 fichiers
+et annonçait « 13/22 ». Trois de ces fichiers (`posix_file.c`, `posix_clock.c`, `posix_socket.c`)
+sont **exclus du build par le cmake amont** dès que `LIBC_WASI=0`, et `common/math/math.c` n'est
+référencé par aucun cmake de la plateforme. Le verdict portait donc en partie sur du code qui ne
+sera jamais compilé. La sonde lit désormais `platform_api_posix.cmake` pour retenir exactement le
+bon jeu de fichiers — et y ajoute `common/memory/mremap.c`, que l'amont **ajoute** quand
+`WASM_HAVE_MREMAP=0`. Un verdict de portage doit porter sur le build réel, pas sur une liste
+plausible.
+
+**Portée, sans illusion.** Objets compilés seulement : rien n'est lié, le cœur de l'interpréteur
+n'est pas encore compilé, aucun `.wasm` n'a tourné sur QNX, `platform/qnx/` n'existe pas encore.
+E2 répondait à la question du risque, pas à celle du travail restant.
+
+## 2026-11-12 — SDP QNX 8.0 installé, sans interface graphique
+
+**Décision.** Installation pilotée en ligne de commande : `qnxsoftwarecenter_clt` (fourni par QNX
+Software Center) et non l'application Eclipse graphique.
+
+**Pourquoi.** QNX Software Center est une application Eclipse RCP : la piloter à l'écran coûte
+cher et casse facilement. Son CLI expose tout ce qu'il faut (`-listLicenseKeys`, `-listInstalled`,
+`-installPackage`, `-destination`, `-offline`, `-importAndInstall`). L'installeur `.run` est une
+archive Makeself dont `start.sh` accepte `--target`, `--agree` et `--disable-auto-start` :
+installation sans racine, sans GUI, dans `~/qnx`.
+
+**Piège consigné.** Lancer le binaire `qnxsoftwarecenter` sans `timeout` ouvre l'application
+graphique et **bloque indéfiniment** : la commande a dû être tuée après 1 800 s. Ne jamais lancer
+un binaire GUI sans `timeout`.
+
+**Intégrité vérifiée.** L'installeur téléchargé (104 701 288 octets) a une empreinte MD5
+`bca161a97ab3e14189cf8e7c8227fb7d` **identique à celle publiée** par le Download Center — même
+démarche que pour le tarball wasi-sdk : rien n'est exécuté sans vérification préalable.
+
 ## 2026-11-12 — WAMR sur Linux : le runtime existe, et le budget CPU se règle à deux niveaux
 
 **Décision.** Les lots L4 (couche `platform/posix` + intégration WAMR) et L5 (trois modules de

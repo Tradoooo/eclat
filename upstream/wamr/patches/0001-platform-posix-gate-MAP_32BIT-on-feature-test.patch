@@ -1,0 +1,35 @@
+From: Baptiste Faisy <baptiste.faisy@gmail.com>
+Subject: [PATCH] platform/posix: gate MAP_32BIT on a feature test instead of an OS blacklist
+
+MAP_32BIT is a Linux-specific mmap(2) flag. The current guard excludes
+__APPLE__ only, so any other non-Linux target that ends up defining
+BUILD_TARGET_X86_64 fails to build with:
+
+    error: 'MAP_32BIT' undeclared (first use in this function)
+
+Observed while porting to QNX 8.0 (SDP 8.0, qcc 12.2.0, -Vgcc_ntox86_64):
+QNX <sys/mman.h> does not define MAP_32BIT. The aarch64le variant was
+unaffected because BUILD_TARGET_X86_64 is not set for that target.
+
+Testing for the feature instead of blacklisting operating systems keeps the
+optimisation where it exists and lets every other target build unchanged.
+
+Verified: with this patch, posix_memmap.c compiles cleanly with qcc 12.2.0
+for both nto x86_64 and nto aarch64le, and the Linux build is unaffected
+(MAP_32BIT is defined there, so the branch is retained).
+
+Applies to WAMR-2.4.5 (commit 25bd7eb63e828e4bd242cc9b38d260b4b31c6605).
+Apply from the repository root:  git apply < this-file   (or patch -p1)
+--- a/core/shared/platform/common/posix/posix_memmap.c
++++ b/core/shared/platform/common/posix/posix_memmap.c
+@@ -83,7 +83,9 @@
+         map_prot |= PROT_EXEC;
+ 
+ #if defined(BUILD_TARGET_X86_64) || defined(BUILD_TARGET_AMD_64)
+-#ifndef __APPLE__
++/* MAP_32BIT is a Linux-specific mmap flag: test for the feature rather than
++   blacklisting operating systems. */
++#if defined(MAP_32BIT)
+     if (flags & MMAP_MAP_32BIT)
+         map_flags |= MAP_32BIT;
+ #endif

@@ -40,10 +40,20 @@ Sur un noyau monolithique seule la première existe ; leur superposition est l'a
 - [x] Amont : recette `qnx-ports` conforme à l'arbre réel, lettre d'accompagnement, notes de portage, versions épinglées et empreinte wasi-sdk vérifiée.
 - [x] Preuves d'absence de port Wasm existant ([`docs/E5-preuves-absence.md`](docs/E5-preuves-absence.md), essai **E5**).
 
-**Bloqué par le SDP QNX 8.0 (non installé) :**
+**SDP QNX 8.0 installé le 12/11 (`~/qnx800`, `qcc` 12.2.0) — l'essai bloquant E2 est tranché :**
 
-- [ ] `platform/qnx/` + courtier en gestionnaire de ressources + politique de sécurité (ECL-10..16).
-- [ ] Essai **E2** : WAMR compile-t-il avec `qcc` ? — **le seul chemin critique du projet**.
+- [x] **E2 : OUI.** Les 8 fichiers de la couche plateforme retenus par le cmake amont compilent
+      avec `qcc` sur `nto x86_64` **et** `nto aarch64le` — **16/16** avec un correctif amont d'une
+      ligne ([`upstream/wamr/patches/`](upstream/wamr/patches), [`PORTING-NOTES.md`](upstream/wamr/PORTING-NOTES.md)).
+      Reproductible : `source tools/setup-sdp.sh && tools/e2-probe.sh --patched`.
+
+**Reste à faire (plus de bloquant, du travail) :**
+
+- [ ] `platform/qnx/` : la cible QNX du dépôt (la sonde compile la couche `linux` + `common/posix`).
+- [ ] Lier le cœur de l'interpréteur pour QNX, exécuter un `.wasm` sur cible (ECL-10).
+- [ ] `broker/` : le courtier en gestionnaire de ressources, imports servis par `MsgSend` (ECL-11).
+- [ ] Politique de sécurité `secpol` + banc de latence sur cible (ECL-12 à ECL-14).
+- [ ] Demande de fusion amont (ECL-16) — le correctif `MAP_32BIT` est prêt et testé.
 
 ## Structure
 
@@ -88,6 +98,7 @@ make size-check      # < 500 lignes/fichier, < 50 lignes/fonction
 make deps            # WAMR épinglé + wasi-sdk (empreinte vérifiée) → .deps/
 make wasm runtime    # 3 modules .wasm + le chargeur eclat-run
 make test-wasm       # intégration : ECL-04/05/06/07, 12 vérifications
+make e2              # essai E2 : la couche POSIX de WAMR face à qcc (exige le SDP, make e2 E2_ARGS=--patched)
 make spdx            # en-tête SPDX sur chaque source
 ```
 

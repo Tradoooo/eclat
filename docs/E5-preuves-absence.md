@@ -38,10 +38,10 @@ n'existe **aucun** port WebAssembly pour QNX. Le filon est réel.
 La réserve porte sur l'**absence absolue**. L'absence dans l'écosystème public open source QNX,
 elle, est établie — et c'est ce que la catégorie *Open-Source Contribution & Ports* évalue.
 
-## 3. Effet sur l'essai E2
+## 3. Effet sur l'essai E2 — **tranché le 2026-11-12**
 
 E2 demandait : « existe-t-il une couche plateforme POSIX réutilisable ? ». Les vérifications 4 et 5
-répondent partiellement, **sans compiler** :
+y répondaient partiellement, sans compiler :
 
 - `core/shared/platform/` ne contient **pas** de couche `posix` générique : les couches sont par
   système (`linux`, `darwin`, `freebsd`, `nuttx`, `zephyr`, …), plus `common` et `include`.
@@ -49,12 +49,18 @@ répondent partiellement, **sans compiler** :
 - Les ports de petits systèmes temps réel (`nuttx`, `zephyr`, `rt-thread`, `riot`, `vxworks`)
   montrent le gabarit attendu pour une cible embarquée : c'est le précédent à suivre pour QNX.
 
-**Hypothèse de travail retenue** : dériver la couche QNX de `core/shared/platform/linux`
-(QNX se déclare conforme POSIX et `qcc` est un frontal GCC), en réutilisant
-`core/shared/platform/common` et le contrat d'interface de `core/shared/platform/include`.
+**Réponse mesurée depuis** (SDP QNX 8.0 installé, `qcc` 12.2.0) : **OUI**. Les 8 fichiers que le
+cmake amont retient pour notre configuration — `common/posix/{posix_time,posix_thread,posix_sleep,
+posix_blocking_op,posix_malloc,posix_memmap}.c`, `common/memory/mremap.c` et
+`linux/platform_init.c` — compilent pour `nto x86_64` **et** `nto aarch64le`, avec **un seul
+correctif d'une ligne** (`MAP_32BIT`, drapeau `mmap` propre à Linux que l'amont n'excluait que
+pour `__APPLE__`). 16/16 avec le correctif, 15/16 sans.
 
-**E2 n'est tranché que par une compilation réelle avec `qcc`**, donc après installation du SDP.
-Ce document ne prétend pas le contraire.
+Détail, méthode et portée exacte du verdict : [`upstream/wamr/PORTING-NOTES.md`](../upstream/wamr/PORTING-NOTES.md)
+et `docs/DECISIONS.md`. Reproduction : `source tools/setup-sdp.sh && tools/e2-probe.sh --patched`.
+
+**Ce que ce verdict ne dit pas** : rien n'est encore lié, le cœur de l'interpréteur n'est pas
+compilé pour QNX, et aucun module `.wasm` n'a tourné sur cible.
 
 ## 4. Reproduction
 

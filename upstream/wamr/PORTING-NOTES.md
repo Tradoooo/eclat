@@ -1,65 +1,130 @@
-# Notes de portage — écarts POSIX attendus sur QNX
+# Notes de portage — QNX 8.0
 
-Ce document anticipe les écarts entre ce que WAMR attend de sa couche plateforme et ce que QNX
-8.0 fournit. **Aucun de ces écarts n'a été constaté par compilation** : le SDP n'est pas installé.
-Chaque ligne est donc soit une attente fondée sur la documentation, soit une hypothèse assumée.
+**Statut : mesuré, plus spéculatif.** Ce document a été réécrit le 12 novembre 2026 après
+l'installation réelle du SDP QNX 8.0 et l'exécution de l'essai **E2**. La version précédente
+listait des écarts *attendus* ; celle-ci liste des écarts *observés*.
 
-Le document sera réécrit au fur et à mesure des constats réels (exigence **ECL-17** : c'est la
-valeur de la contribution pour la communauté). Les statuts sont : `DOC` = fondé sur la
-documentation QNX, `HYP` = hypothèse à trancher par le code, `PREC` = précédent observé dans un
-autre port WAMR.
+## Périmètre exact de ce qui a été mesuré
 
-## Point de départ
+`tools/e2-probe.sh` compile, avec le vrai `qcc` du SDP 8.0, **le jeu de fichiers que le cmake
+amont retient pour notre configuration** (interpréteur seul, `LIBC_WASI=0`, `DEBUG_INTERP=0`,
+pas de `mremap`) :
 
-`core/shared/platform/` ne contient pas de couche POSIX générique : les couches sont par système
-(`linux`, `darwin`, `freebsd`, `nuttx`, …), avec un socle `common` et un contrat d'interface dans
-`include`. En revanche `product-mini/platforms/` contient **un dossier `posix`**.
+```
+core/shared/platform/common/posix/posix_time.c
+core/shared/platform/common/posix/posix_thread.c
+core/shared/platform/common/posix/posix_sleep.c
+core/shared/platform/common/posix/posix_blocking_op.c
+core/shared/platform/common/posix/posix_malloc.c
+core/shared/platform/common/posix/posix_memmap.c
+core/shared/platform/common/memory/mremap.c
+core/shared/platform/linux/platform_init.c
+```
 
-Deux stratégies possibles, à trancher avec les mainteneurs (question posée dans la lettre
-d'accompagnement) :
+Ce choix n'est pas arbitraire — il est **lu dans le cmake amont**
+(`common/posix/platform_api_posix.cmake`) :
 
-| Stratégie | Avantage | Risque |
+- si `WAMR_BUILD_LIBC_WASI != 1` → `posix_file.c` **et** `posix_clock.c` sont retirés du build ;
+- si `LIBC_WASI != 1` **et** `DEBUG_INTERP != 1` → `posix_socket.c` est retiré, et `libc-util`
+  n'est pas inclus (donc `libc_errno.c` hors build) ;
+- si `mremap` est absent → `common/memory/` est **ajouté** au build ;
+- `common/math/math.c` n'est référencé par aucun de ces cmake : il ne fait pas partie du build.
+
+Tester un jeu de fichiers différent produirait un verdict hors sujet. C'est exactement l'erreur
+de la première version de cette sonde : elle compilait 11 fichiers dont 3 que l'amont exclut dans
+notre configuration, et annonçait « 13/22 » alors que les échecs portaient sur du code non
+construit.
+
+## Résultat
+
+| Cible | Sans correctif | Avec `patches/0001` |
 |---|---|---|
-| dériver de `platform/linux` | QNX est conforme POSIX, `qcc` est un frontal GCC : le delta devrait être minime | `linux` peut utiliser des spécifiques Linux (epoll, `pthread_setaffinity_np`, `/proc`) |
-| partir de `platform/common` + couche fine | delta explicite, rien d'inutile | plus de code à écrire et à maintenir |
+| `nto x86_64` (`-Vgcc_ntox86_64`) | 7 / 8 | **8 / 8** |
+| `nto aarch64le` (`-Vgcc_ntoaarch64le`) | 8 / 8 | **8 / 8** |
 
-Les ports `nuttx`, `zephyr`, `rt-thread` et `riot` sont les précédents à lire avant de choisir
-(`PREC`) : ils montrent ce qu'un port de micro-noyau temps réel doit réellement fournir.
+**Verdict E2 : OUI.** La couche d'abstraction POSIX de WAMR compile pour QNX 8.0 avec **un seul
+correctif d'une ligne**.
 
-## Écart par écart
+Drapeaux utilisés : `-D_QNX_SOURCE -DWASM_HAVE_MREMAP=0` et les en-têtes
+`platform/linux`, `platform/include`, `common/posix`, `common/libc-util`, `core/shared/utils`,
+`core/iwasm/include`, `core/iwasm/common`.
 
-| Domaine | Ce que WAMR attend | Ce que QNX fournit | Écart attendu | Statut |
-|---|---|---|---|---|
-| Horloge monotone | `clock_gettime(CLOCK_MONOTONIC)` en ns | POSIX conforme ; `CLOCK_MONOTONIC` documenté | aucun en principe ; vérifier la résolution réelle | DOC |
-| Horloge de sommeil | `clock_nanosleep` ou `nanosleep` | `nanosleep` POSIX | `clock_nanosleep` peut manquer → repli `nanosleep` | HYP |
-| Threads | `pthread_create/join/detach`, attributs de pile | pthreads POSIX | vérifier le comportement de la taille de pile minimale | DOC |
-| Verrous | `pthread_mutex_t`, éventuellement `PTHREAD_MUTEX_RECURSIVE` | pthreads POSIX | vérifier les attributs récursifs | HYP |
-| Variables de condition | `pthread_cond_t` avec horloge monotone (`pthread_condattr_setclock`) | à confirmer | si absent : interdire les threads Wasm (déjà hors périmètre, cahier §3.2) | HYP |
-| Mémoire alignée | `posix_memalign` / `aligned_alloc` | à confirmer | repli possible : sur-allouer + aligner à la main | HYP |
-| Mémoire protégée | pages de garde via `mmap(PROT_NONE)` | `mmap` POSIX | vérifier les drapeaux acceptés | HYP |
-| Taille de page | `sysconf(_SC_PAGESIZE)` | POSIX | aucun | DOC |
-| `libc_builtin` | jeu réduit de `memcpy`, `memset`, `strlen`, `printf`… | libc QNX | aucun en principe | DOC |
-| Sortie d'erreur | `os_printf` / `os_vprintf` | à mapper sur la libc QNX | mapping direct attendu | HYP |
-| Atomiques | `__atomic_*` de GCC/Clang | `qcc` est un frontal GCC | vérifier le support sur aarch64le et x86_64 | HYP |
-| Affinité CPU | `pthread_setaffinity_np` (spécifique Linux/glibc) | **probablement absent** ; QNX a ses propres mécanismes | à neutraliser ou à remplacer — c'est l'écart le plus probable | HYP |
-| `epoll` | utilisé par certaines couches | QNX fournit un port `epoll` (présent dans l'index `qnx-ports`) | disponible, mais à épingler | DOC |
-| Signaux / `SIGSTKSZ` | pile alternative | à confirmer | peut différer ; non critique si les threads Wasm restent désactivés | HYP |
+## Le seul écart observé
 
-## Ce qui est déjà tranché par le périmètre
+**`MAP_32BIT` n'existe pas sur QNX.** Message exact, `posix_memmap.c:88`, cible x86_64 :
 
-Le cahier des charges (§3.2) met **hors périmètre** : les threads WebAssembly et la mémoire
-partagée, le support JIT (interpréteur et AOT seulement), WASI complet. Trois familles d'écarts
-potentiels disparaissent donc d'emblée — c'est ce qui rend le portage tenable en cinq semaines.
+```
+error: 'MAP_32BIT' undeclared (first use in this function); did you mean 'MMAP_MAP_32BIT'?
+```
 
-## Garde-fou de conception
+Code amont en cause :
 
-Le contrat d'interface de la couche plateforme est **le même** pour `platform/posix/` et
-`platform/qnx/` : une seule déclaration, deux implémentations, jamais de code recopié. Toute la
-logique de décision se teste donc sur Linux avant d'avoir le SDP — c'est déjà le cas aujourd'hui
-(161 vérifications, 22 mutants tués, 10 000 décisions différentielles).
+```c
+#if defined(BUILD_TARGET_X86_64) || defined(BUILD_TARGET_AMD_64)
+#ifndef __APPLE__
+    if (flags & MMAP_MAP_32BIT)
+        map_flags |= MAP_32BIT;
+#endif
+#endif
+```
 
-## Règle de rédaction
+`MAP_32BIT` est un drapeau spécifique à `mmap(2)` sous Linux (allouer dans les 2 premiers Gio).
+L'amont n'exclut que `__APPLE__` : toute autre cible non-Linux qui définit `BUILD_TARGET_X86_64`
+casse. Le `<sys/mman.h>` de QNX ne définit pas `MAP_32BIT`. La variante `aarch64le` n'était pas
+touchée, `BUILD_TARGET_X86_64` n'y étant pas posé.
 
-Quand un écart sera constaté pour de vrai, cette ligne devra être remplacée par : l'écart exact
-(message du compilateur ou comportement observé), la résolution retenue, et si la résolution
-s'écarte de l'amont, la raison. Pas de « devrait fonctionner » dans un document de portage.
+**Correctif retenu** (`upstream/wamr/patches/0001-platform-posix-gate-MAP_32BIT-on-feature-test.patch`) :
+tester la présence de la fonctionnalité plutôt que tenir une liste noire de systèmes.
+
+```c
+#if defined(MAP_32BIT)
+```
+
+Ce correctif est strictement meilleur que l'existant : il conserve l'optimisation là où elle
+existe (Linux) et laisse toutes les autres cibles compiler sans modification. Vérifié :
+`git apply --check` passe sur WAMR-2.4.5, et les deux cibles QNX compilent après application.
+
+## Écarts anticipés qui ne se sont PAS produits
+
+Les hypothèses de la version précédente de ce document, toutes infirmées par la mesure :
+
+| Anticipé | Observé |
+|---|---|
+| `clock_gettime(CLOCK_MONOTONIC)` à adapter | compile tel quel |
+| threads POSIX / attributs de pile | compile tel quel |
+| `pthread_condattr_setclock` absent | non atteint dans ce jeu de fichiers |
+| `posix_memalign` / `aligned_alloc` manquants | `posix_malloc.c` compile tel quel |
+| pages de garde `mmap(PROT_NONE)` | `posix_memmap.c` compile (hors `MAP_32BIT`) |
+| atomiques `__atomic_*` sur aarch64le | compilent |
+| `epoll` nécessaire | non requis dans notre configuration |
+
+`platform_internal.h` de la couche `linux` inclut `pthread.h`, `semaphore.h`, `dirent.h`,
+`fcntl.h`, `unistd.h`, `poll.h`, `sched.h`, `errno.h`, `math.h`, `signal.h` : **tous présents**
+dans `$QNX_TARGET/usr/include`. QNX se déclare conforme POSIX et le vérifie ici.
+
+## Ce qui n'est PAS encore fait
+
+Honnêteté sur la portée du verdict :
+
+1. **Compilation d'objets seulement.** Rien n'est encore **lié** : aucune bibliothèque, aucun
+   binaire QNX n'existe à ce stade.
+2. **Le cœur de l'interpréteur n'est pas compilé** (`core/iwasm/interpreter`, `core/shared/utils`,
+   `wasm_runtime`…) — seule la couche plateforme l'a été. C'était la question posée par E2, pas
+   le portage complet.
+3. **Aucun module `.wasm` n'a été exécuté sur QNX.** Les 12 vérifications d'intégration
+   (`make test-wasm`) tournent sur Linux.
+4. **`platform/qnx/` n'existe pas encore** : la sonde compile la couche `linux` + `common/posix`,
+   ce qui prouve la réutilisabilité mais ne constitue pas encore la cible QNX du dépôt.
+5. Le banc de latence sur cible, la politique `secpol`, le courtier en gestionnaire de
+   ressources : tout cela reste à faire (lots L7 à L9).
+
+Ce qui a changé, c'est le **risque** : le cahier des charges conditionnait la poursuite du projet
+à E2 (« sinon on arrête là »). E2 est positif, avec un correctif d'une ligne. La suite est du
+travail, plus une inconnue bloquante.
+
+## Environnement de mesure
+
+SDP QNX 8.0 installé dans `/home/baptiste/qnx800` (5,9 Go), `qcc` 12.2.0, binutils 2.43.0,
+`QNX_HOST=$SDP/host/linux/x86_64`, `QNX_TARGET=$SDP/target/qnx`, cibles `x86_64` et `aarch64le`.
+Licence : QNX SDP 8.0 Education, classe Non-Commercial/Academic, série 911285-10384620.
+Reproductible : `source tools/setup-sdp.sh && tools/e2-probe.sh [--patched]`.
