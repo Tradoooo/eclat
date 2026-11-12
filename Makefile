@@ -39,7 +39,7 @@ TEST_SRCS := $(sort $(wildcard core/tests/*.c))
 TEST_BINS := $(patsubst core/tests/%.c,$(BUILD)/bin/%,$(TEST_SRCS))
 DECIDE_BIN := $(BUILD)/bin/eclat-decide
 
-.PHONY: all core preuves test test-san decide python python-tests differential fuzz mutants bench deps wasm runtime test-wasm e2 qnx qnx-amont vm-qnx demo-qnx clean size-check spdx
+.PHONY: all core preuves test test-san decide python python-tests differential fuzz mutants bench deps wasm runtime test-wasm e2 qnx qnx-amont vm-qnx demo-qnx watch clean size-check spdx
 
 all: core
 
@@ -141,6 +141,10 @@ e2:
 # QNX_ARCH=x86_64 (défaut) ou aarch64.
 qnx:
 	tools/build-qnx.sh $(QNX_ARCH)
+
+# Tant que la cible tourne : un battement toutes les 2 s (capteur vivant + uptime), Ctrl-C pour cesser.
+watch:
+	tools/eclat-watch.sh $(QNX_ARCH)
 
 # Variante « portage amont » : utilise le port QNX de la PR #5200 (dépôt altinayselman/wamr-qnx,
 # Apache-2.0, voir NOTICE) au lieu de nos propres correctifs. C'est celle qui a tourné sur cible.
