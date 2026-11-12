@@ -140,6 +140,7 @@ make qnx             # eclat-run pour QNX 8.0 (nos correctifs)
 make qnx-amont       # eclat-run pour QNX 8.0 avec le portage amont #5200 — celui qui a tourné
 tools/qnx-vm.sh build && tools/qnx-vm.sh start   # image QNX 8.0 pour QEMU (mkqnximage) + démarrage
 make demo-qnx        # les 4 scénarios sur cible, console archivée dans docs/preuves-qnx/
+make watch           # la cible EN DIRECT : un battement toutes les 2 s (capteur vivant + uptime), Ctrl-C pour cesser
 make spdx            # en-tête SPDX sur chaque source
 ```
 
