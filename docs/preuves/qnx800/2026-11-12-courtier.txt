@@ -1,5 +1,5 @@
 # Éclat — le courtier de capacités sur cible QNX 8.0
-# Capturée le 2026-11-12T21:18:24+01:00 par tools/demo-broker-on-qnx.sh
+# Capturée le 2026-11-12T21:28:27+01:00 par tools/demo-broker-on-qnx.sh
 # Hôte : 127.0.0.1:2280 (SSH), cible /tmp/eclat-broker, architecture x86_64
 # Le courtier s'enregistre sous /dev/cap ; le client lui parle par MsgSend/MsgReply.
 # Aucune sortie n'est retouchée.
@@ -11,18 +11,19 @@ QNX qnxwamr 8.0.0 2026/06/05-16:26:03EDT x86pc x86_64
 3 fichiers transférés
 
 ════════ Démarrage du courtier ════════
-courtier: name_attach(cap) a échoué : File exists
 courtier: politique « broker-demo » chargée (2 règles allow, 0 règles deny)
+courtier: à l'écoute sur cap (canal 1)
+courtier: publication de /dev/cap : retour -1 (errno 0) — repli sur le nom cap
 
 ════════ Le client interroge le courtier ════════
 client: connecté à cap
 — vivacité —
   ping                               -> CAP_OK             (payload=0, seq=1)
 — demandes autorisées —
-  cap_read_sensor(id=1) t0           -> CAP_OK             (payload=3913, seq=2)
-  cap_read_sensor(id=1) t0+250ms     -> CAP_OK             (payload=3406, seq=3)
-  cap_read_sensor(id=1) t0+500ms     -> CAP_OK             (payload=2074, seq=4)
-  cap_read_sensor(id=1) t0+750ms     -> CAP_OK             (payload=3124, seq=5)
+  cap_read_sensor(id=1) t0           -> CAP_OK             (payload=2257, seq=2)
+  cap_read_sensor(id=1) t0+250ms     -> CAP_OK             (payload=3673, seq=3)
+  cap_read_sensor(id=1) t0+500ms     -> CAP_OK             (payload=3732, seq=4)
+  cap_read_sensor(id=1) t0+750ms     -> CAP_OK             (payload=2317, seq=5)
 — demandes refusées —
   cap_net_send(chan=9)               -> CAP_DENIED_POLICY  (payload=0, seq=6)
   cap_write_actuator(99999)          -> CAP_DENIED_RANGE   (payload=0, seq=7)
@@ -31,8 +32,9 @@ client: connecté à cap
 client: terminé
 
 ════════ Journal du courtier ════════
-courtier: name_attach(cap) a échoué : File exists
 courtier: politique « broker-demo » chargée (2 règles allow, 0 règles deny)
+courtier: à l'écoute sur cap (canal 1)
+courtier: publication de /dev/cap : retour -1 (errno 0) — repli sur le nom cap
 
 ════════ Arrêt du courtier ════════
 arrêté

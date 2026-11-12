@@ -1,5 +1,5 @@
 # Éclat — la boucle 1 kHz et la mise à mort d'un module gourmand
-# Capturée le 2026-11-12T21:18:41+01:00 par tools/demo-boucle.sh
+# Capturée le 2026-11-12T21:28:44+01:00 par tools/demo-boucle.sh
 # Hôte : 127.0.0.1:2280 (SSH), cible /tmp/eclat-broker, architecture x86_64
 # ⚠ Sous QEMU/KVM : la gigue absolue est dominée par l'émulation. Ce qui est prouvé ici,
 #   c'est que la boucle CONTINUE de tourner pendant la mise à mort d'un module ennemi.
@@ -9,19 +9,27 @@
 QNX qnxwamr 8.0.0 2026/06/05-16:26:03EDT x86pc x86_64
 
 ════════ Transfert ════════
-5 fichiers transférés
+6 fichiers transférés
 
 ════════ Démarrage du courtier ════════
-courtier: politique illisible : pol-broker.toml
+courtier: politique « broker-demo » chargée (2 règles allow, 0 règles deny)
+courtier: à l'écoute sur cap (canal 1)
+courtier: publication de /dev/cap : retour -1 (errno 0) — repli sur le nom cap
 
 ════════ 1. baseline (boucle seule) ════════
-boucle: courtier « cap » introuvable
+boucle 1 kHz : 3000 tics, 2999 mesures de gigue
+gigue (écart au nominal de 1 ms) : min=-988160 ns  p50=1170671 ns  p99=19941057 ns  p99.9=40967656 ns  max=61222610 ns
+échéances au-delà de 1,5 ms : 1911 (63.721 %)
 
 ════════ 2. pendant la mise à mort du module gourmand ════════
-boucle: courtier « cap » introuvable
+boucle 1 kHz : 3000 tics, 2999 mesures de gigue
+gigue (écart au nominal de 1 ms) : min=-997254 ns  p50=701523 ns  p99=16064332 ns  p99.9=38622845 ns  max=80960891 ns
+échéances au-delà de 1,5 ms : 1621 (54.051 %)
 
 ════════ 3. après ════════
-boucle: courtier « cap » introuvable
+boucle 1 kHz : 3000 tics, 2999 mesures de gigue
+gigue (écart au nominal de 1 ms) : min=-993165 ns  p50=532481 ns  p99=11033804 ns  p99.9=21199272 ns  max=29992271 ns
+échéances au-delà de 1,5 ms : 1520 (50.684 %)
 
 ════════ Arrêt ════════
 arrêté

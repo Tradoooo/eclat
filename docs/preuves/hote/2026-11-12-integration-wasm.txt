@@ -11,7 +11,7 @@ tests/integration_wasm.sh
   ok    au moins 4 refus journalisés (4)
 == ECL-06 : module gourmand, budget CPU de 200 ms ==
   ok    la boucle sans fin est tuée par le budget CPU
-  ok    tuée en moins de 5 s (mesuré : 1223 ms)
+  ok    tuée en moins de 5 s (mesuré : 1225 ms)
 == ECL-07 : module falsifié ==
   ok    un octet modifié refuse le chargement
   ok    le motif cite l'empreinte

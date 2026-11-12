@@ -1,5 +1,5 @@
 # Éclat — les imports du module passent par le courtier
-# Capturée le 2026-11-12T21:18:33+01:00 par tools/demo-module-via-broker.sh
+# Capturée le 2026-11-12T21:28:35+01:00 par tools/demo-module-via-broker.sh
 # Hôte : 127.0.0.1:2280 (SSH), cible /tmp/eclat-broker, architecture x86_64
 # eclat-run est lancé avec --broker cap : chaque import du module devient un MsgSend.
 # Le bilan (appels, refus) est donc la trace du courtier, d'un AUTRE processus.
@@ -25,8 +25,8 @@ module « honneste.wasm » (827 octets) sous politique « via-broker »
 --- bilan ---
 appels au courtier : 4
 refus              : 0
-cpu mesuré         : 77937 ns
-temps écoulé       : 546609 ns
+cpu mesuré         : 74096 ns
+temps écoulé       : 556810 ns
 tué par le budget  : non
 code du module     : 0
 code=0
@@ -44,8 +44,8 @@ module « hostile.wasm » (850 octets) sous politique « via-broker »
 --- bilan ---
 appels au courtier : 6
 refus              : 4
-cpu mesuré         : 201674 ns
-temps écoulé       : 1025578 ns
+cpu mesuré         : 193555 ns
+temps écoulé       : 1189476 ns
 tué par le budget  : non
 code du module     : 0
 code=0
