@@ -1,0 +1,25 @@
+baseline : make test vert
+  tué      dec-etape1-cap-inconnu-accepte
+  tué      dec-etape2-deny-ignore
+  tué      dec-etape3-facilites-hote-supprimees
+  tué      dec-etape4-premiere-regle-allow-fausse
+  tué      dec-etape5-plage-id-desactivee
+  tué      dec-etape5-borne-basse-exclusive
+  tué      dec-etape5-borne-haute-exclusive
+  tué      dec-etape6-plage-valeur-desactivee
+  tué      dec-etape6-borne-basse-exclusive
+  tué      dec-etape6-jamais-appliquee
+  tué      dec-etape7-defaut-inverse
+  tué      bud-cpu-borne-exclusive
+  tué      bud-calls-borne-exclusive
+  tué      bud-quota-ne-prime-plus
+  tué      bud-fenetre-hors-borne
+  tué      log-decision-toujours-ok
+  tué      pol-sha256-jamais-present
+  tué      pol-name-toujours-vide
+  tué      pol-validate-plage-id-ignoree
+  tué      pol-sha256-jamais-verifie
+  tué      toml-tableau-non-ferme-accepte
+  tué      names-code-decision-constant
+mutants : 22 tués / 22 (survivants : 0, config cassée : 0)
+MUTANTS OK : taux de détection 100 %

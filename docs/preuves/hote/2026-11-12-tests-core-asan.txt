@@ -1,0 +1,10 @@
+== build/bin/test_budget ==
+OK 36 checks
+== build/bin/test_decision ==
+OK 45 checks
+== build/bin/test_log ==
+OK 24 checks
+== build/bin/test_policy ==
+OK 56 checks
+== build/bin/test_sha256 ==
+OK 37 checks

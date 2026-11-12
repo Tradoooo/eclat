@@ -1,0 +1,20 @@
+tests/integration_wasm.sh
+== ECL-04 : module honnête ==
+  ok    le module s'exécute (code 0)
+  ok    il appelle bien le courtier
+  ok    aucun refus pour un module honnête
+  ok    run() retourne 0
+== ECL-05 : module hostile ==
+  ok    le module hostile survit à ses refus (code 0)
+  ok    accès non autorisé → CAP_DENIED_POLICY
+  ok    valeur hors plage → CAP_DENIED_RANGE
+  ok    au moins 4 refus journalisés (4)
+== ECL-06 : module gourmand, budget CPU de 200 ms ==
+  ok    la boucle sans fin est tuée par le budget CPU
+  ok    tuée en moins de 5 s (mesuré : 1203 ms)
+== ECL-07 : module falsifié ==
+  ok    un octet modifié refuse le chargement
+  ok    le motif cite l'empreinte
+
+intégration wasm : 12 ok, 0 échec(s)
+OK 12 vérifications

@@ -37,7 +37,7 @@ TEST_SRCS := $(sort $(wildcard core/tests/*.c))
 TEST_BINS := $(patsubst core/tests/%.c,$(BUILD)/bin/%,$(TEST_SRCS))
 DECIDE_BIN := $(BUILD)/bin/eclat-decide
 
-.PHONY: all core test test-san decide python python-tests differential fuzz mutants bench deps wasm runtime test-wasm e2 qnx qnx-amont vm-qnx demo-qnx clean size-check spdx
+.PHONY: all core preuves test test-san decide python python-tests differential fuzz mutants bench deps wasm runtime test-wasm e2 qnx qnx-amont vm-qnx demo-qnx clean size-check spdx
 
 all: core
 
@@ -124,6 +124,10 @@ $(RUN_BIN): target/eclat_run.c runtime/eclat_runtime.c platform/posix/eclat_plat
 test-wasm: runtime wasm
 	@chmod +x tests/integration_wasm.sh
 	tests/integration_wasm.sh
+
+# Toutes les preuves du dépôt : chaque affirmation a son artefact daté dans docs/preuves/.
+preuves:
+	tools/preuves.sh
 
 # Essai E2 du cahier des charges : la couche POSIX de WAMR compile-t-elle avec qcc ?
 # Nécessite le SDP : source tools/setup-sdp.sh d'abord. --patched applique nos correctifs amont.

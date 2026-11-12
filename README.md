@@ -63,15 +63,26 @@ Sur un noyau monolithique seule la première existe ; leur superposition est l'a
       | **ECL-06** | module gourmand en boucle sans fin **tué par le superviseur** à 1,30 s pour un budget de 300 ms (`fork`/`pipe`/`poll`/`SIGKILL` fonctionnent sur QNX) |
       | **ECL-07** | module falsifié (1 octet) **refusé** avec l'empreinte citée, code 1 |
 
+- [x] **Le courtier QNX** : il s'enregistre dans l'espace de noms de QNX et sert les imports par
+      `MsgSend`/`MsgReply`. La politique est appliquée **de l'autre côté d'une frontière de
+      message synchrone** — le capteur renvoie 4200, le réseau et l'actionneur hors plage sont
+      refusés. Preuve : [`docs/preuves/qnx800/`](docs/preuves/qnx800).
+
+**Chaque étape livre sa preuve** — commande unique, artefact brut daté, verdict :
+
+```bash
+make preuves        # rejoue tout, régénère docs/preuves/ETAT.md (~2 min)
+```
+
+Voir [`docs/preuves/INDEX.md`](docs/preuves/INDEX.md). Une étape sans preuve n'est pas une étape faite.
+
 **Reste à faire (plus de bloquant, du travail) :**
 
-- [ ] `broker/` : le courtier en **gestionnaire de ressources QNX**, imports servis par
-      `MsgSend`/`MsgReply` au lieu d'appels de fonction (ECL-11).
+- [ ] Publier le courtier sous `/dev/cap` avec `resmgr_attach()` (aujourd'hui c'est le nom
+      « cap » : `name_attach()` refuse les chemins avec des « / »), puis faire passer les imports
+      du module par le courtier au lieu de l'appel de fonction.
 - [ ] Politique de sécurité `secpol` interdisant au runtime tout accès hors courtier (ECL-14).
 - [ ] Banc de latence **sur cible** avec la boucle à 1 kHz (ECL-12, ECL-13).
-- [ ] Contribution amont : la recette `qnx-ports/build-files` est **ouverte** —
-      [PR #337](https://github.com/qnx-ports/build-files/pull/337), testée sur les deux cibles
-      avant envoi. Le portage WAMR, lui, appartient à la PR #5200.
 
 ## Structure
 

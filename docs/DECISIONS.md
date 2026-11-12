@@ -1,5 +1,66 @@
 # DECISIONS — journal des décisions de conception
 
+## 2026-11-12 — Le courtier QNX : la politique passe par une frontière de message synchrone
+
+**Décision.** `broker/` tient le courtier de capacités : il s'enregistre dans l'espace de noms de
+QNX, reçoit les demandes de capacité par `MsgSend`/`MsgReply`, applique la politique de `core/`
+et répond avec un code de décision. Le client de test (`broker/eclat_client.c`) pose les mêmes
+questions qu'un module.
+
+**Preuve** (`docs/preuves/qnx800/2026-11-12-courtier.txt`, console brute de la cible QNX 8.0) :
+
+```
+cap_read_sensor(id=1)      -> CAP_OK             (payload=4200)
+cap_net_send(chan=9)       -> CAP_DENIED_POLICY
+cap_write_actuator(99999)  -> CAP_DENIED_RANGE
+cap_read_sensor(id=42)     -> CAP_DENIED_RANGE
+cap_kv_put                 -> CAP_DENIED_POLICY
+```
+
+La valeur du capteur (4200) a traversé la frontière : ce n'est pas un appel de fonction déguisé.
+C'est la propriété de sécurité d'Éclat, enfin démontrée : la décision est prise **d'un seul
+côté**, dans un processus dont on peut retirer les abilities.
+
+**Quatre pièges QNX, tous payés et consignés** (ils coûtent des heures ; ils se retrouvent dans
+chaque projet QNX, donc les écrire vaut de l'or) :
+
+1. **`name_attach()` n'accepte qu'un NOM.** Un chemin avec des « / » est refusé (EINVAL, vérifié).
+   `/dev/cap` exige donc `resmgr_attach()` et le jeu complet de fonctions `iofunc` — c'est
+   l'étape suivante du lot L8. En attendant, le courtier s'enregistre sous le nom « cap ».
+2. **`name_attach()` CRÉE le canal et le rend dans `name_attach_t.chid`.** Le serveur doit lire
+   SUR CE CANAL. Créer son propre `ChannelCreate()` et y lire fait que le client bloque
+   indéfiniment dans `name_open()` : le gestionnaire de chemins envoie la poignée de connexion
+   au canal du gestionnaire, pas au vôtre. C'est l'erreur classique, et elle ne se manifeste que
+   par un blocage silencieux.
+3. **Le serveur doit traiter le message `_IO_CONNECT`** (répondre `MsgReply(rcvid, EOK, NULL, 0)`)
+   et les pulsations (`_PULSE_CODE_DISCONNECT` → `ConnectDetach`) avant tout message applicatif.
+4. **Un message applicatif doit porter un type AU-DESSUS de `_IO_MAX` (0x1ff)** — sinon il est
+   interprété par le noyau ou le gestionnaire de chemins. Notre type est `0xec01`. En prime,
+   `MsgReply()` prend le **statut en deuxième argument** sur QNX 8.0 : `MsgReply(rcvid, 0, &rep, n)`.
+
+Deux détails d'outillage : QNX n'a pas `pkill` mais `slay` ; et avec `set -o pipefail`, un
+`grep -q` qui trouve son motif ferme le tube tôt, l'en amont reçoit SIGPIPE et le pipeline vaut
+échec — un test « la VM est-elle vivante ? » répondait « non » alors qu'elle tournait.
+
+**Ce qui reste pour ECL-11** : publier le courtier sous `/dev/cap` avec `resmgr_attach()`, puis
+faire passer les imports du module par ce courtier au lieu de l'appel de fonction.
+
+## 2026-11-12 — Chaque étape livre sa preuve, dans le dépôt
+
+**Décision.** `docs/preuves/` est un dossier de preuves, pas de rapports : pour chaque affirmation,
+une commande unique, un **artefact brut daté** (sortie de commande non retouchée) et une ligne
+dans `docs/preuves/ETAT.md`. `tools/preuves.sh` rejoue tout et régénère l'état ; `make preuves`
+est le raccourci. Les artefacts des cibles sont archivés dans `docs/preuves/qnx800/`, ceux de
+l'hôte dans `docs/preuves/hote/`.
+
+**Pourquoi.** Une affirmation sans artefact est une opinion. Après l'étape « le courtier marche »,
+la preuve a été l'artefact lui-même : la console de la cible QNX 8.0, datée, avec les quatre
+décisions rendues par le courtier de l'autre côté de la frontière IPC. On peut la relire, la
+différer, et vérifier qu'elle correspond au code livré.
+
+**Règle retenue pour la suite.** Une étape sans preuve n'est pas une étape faite. Les échecs sont
+archivés comme des échecs : un artefact rouge vaut mieux qu'une ligne absente.
+
 ## 2026-11-12 — Contribution amont : une recette pour l'arbre des ports QNX (PR #337)
 
 **Décision.** La contribution amont d'Éclat est la **recette de port WAMR pour

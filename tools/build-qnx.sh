@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: Apache-2.0
-# Éclat — construction pour QNX 8.0 (lot L7).
+# Éclat — construction pour QNX 8.0 (lots L7 et L8).
 #
 # Enchaîne : application des correctifs amont → configuration cmake avec le toolchain QNX →
-# compilation de WAMR pour la cible → compilation de core/ + platform/qnx/ + runtime/ + target/
-# avec qcc → édition de liens de `eclat-run`.
+# compilation de WAMR pour la cible → compilation de core/ + platform/qnx/ + runtime/ + target/ +
+# broker/ avec qcc → édition de liens.
+#
+# Produit trois binaires QNX :
+#   eclat-run     le chargeur de module (runtime WebAssembly + courtier de décisions)
+#   eclat-broker  le courtier de capacités, serveur de messages sur /dev/cap
+#   eclat-client  le client de test du courtier (l'outil qui produit la preuve de l'IPC)
 #
 # Prérequis : SDP 8.0 sourcé (source tools/setup-sdp.sh) et dépendances présentes (make deps).
 # Usage : tools/build-qnx.sh [x86_64|aarch64]        (défaut : x86_64)
@@ -30,7 +35,7 @@ OUT="$RACINE/build/qnx-$ARCH"
 
 # ECLAT_WAMR_LIB : bibliothèque WAMR/QNX déjà construite — par exemple le portage de la PR amont
 # #5200 (scripts/build-qnx.sh de .deps/wamr-qnx). Quand elle est fournie, on n'applique PAS nos
-# correctifs et on ne reconstruit PAS WAMR : nos patches porteraient sur un arbre déjà modifié.
+# correctifs et on ne reconstruit pas WAMR : nos patches porteraient sur un arbre déjà modifié.
 WAMR_LIB="${ECLAT_WAMR_LIB:-$BUILD_WAMR/libiwasm.a}"
 if [ -n "${ECLAT_WAMR_LIB:-}" ]; then SAUTE_WAMR=1; else SAUTE_WAMR=0; fi
 
@@ -93,30 +98,45 @@ fi
 
 echo "== 4/5 compilation d'Éclat pour QNX =="
 CFLAGS_QNX=(-std=c11 -O2 -Wall -Wextra -Werror -D_QNX_SOURCE
-            -Icore/include -Iplatform/include -Iruntime -I"$WAMR_INC")
-mkdir -p "$OUT/obj"
+            -Icore/include -Iplatform/include -Iruntime -Ibroker/include -I"$WAMR_INC")
+mkdir -p "$OUT/obj/main" "$OUT/obj/broker"
 nb=0
+# Le cœur, la couche plateforme, le runtime et le chargeur : un seul binaire.
 for f in core/src/*.c platform/qnx/*.c runtime/*.c target/*.c; do
   "$QNX_HOST/usr/bin/qcc" "-V$VARIANT" "${CFLAGS_QNX[@]}" -c "$f" \
-      -o "$OUT/obj/$(echo "$f" | tr '/' '_').o"
+      -o "$OUT/obj/main/$(echo "$f" | tr '/' '_').o"
+  nb=$((nb + 1))
+done
+# Le courtier et son client : deux points d'entrée distincts.
+for f in broker/*.c; do
+  "$QNX_HOST/usr/bin/qcc" "-V$VARIANT" "${CFLAGS_QNX[@]}" -c "$f" \
+      -o "$OUT/obj/broker/$(basename "$f" .c).o"
   nb=$((nb + 1))
 done
 echo "   $nb fichiers compilés avec qcc -V$VARIANT"
 
 echo "== 5/5 édition de liens =="
 BIN="$OUT/eclat-run"
-# -lsocket : sur QNX l'API socket BSD est dans libsocket (le shared_platform.cmake du port amont
-# fait link_libraries(socket m)). -lm : libm.so.3 existe bien sur QNX.
+# -lsocket : sur QNX l'API socket BSD est dans libsocket (le shared_platform.cmake du port
+# amont fait link_libraries(socket m)). -lm : libm.so.3 existe bien sur QNX.
 "$QNX_HOST/usr/bin/qcc" "-V$VARIANT" "${CFLAGS_QNX[@]}" \
-  "$OUT"/obj/*.o "$WAMR_LIB" -lsocket -lm -o "$BIN"
+  "$OUT"/obj/main/*.o "$WAMR_LIB" -lsocket -lm -o "$BIN"
+
+# Le courtier et son client portent le cœur de décision, pas le runtime WebAssembly.
+"$QNX_HOST/usr/bin/qcc" "-V$VARIANT" "${CFLAGS_QNX[@]}" \
+  "$OUT"/obj/main/core_src_*.o "$OUT/obj/broker/eclat_broker.o" -lsocket -lm -o "$OUT/eclat-broker"
+"$QNX_HOST/usr/bin/qcc" "-V$VARIANT" "${CFLAGS_QNX[@]}" \
+  "$OUT"/obj/main/core_src_*.o "$OUT/obj/broker/eclat_client.o" -lsocket -lm -o "$OUT/eclat-client"
+
 echo
 echo "== résultat =="
 file "$BIN" | cut -c1-140
-ls -la "$BIN"
+ls -la "$BIN" "$OUT/eclat-broker" "$OUT/eclat-client"
 echo
-echo "Binaire QNX produit : $BIN"
+echo "Binaires QNX produits dans : $OUT"
 echo "Interpréteur attendu : /usr/lib/ldqnx-64.so.2"
 echo
-echo "Pour l'exécuter sur cible :"
+echo "Pour les exécuter sur cible :"
 echo "  tools/qnx-vm.sh build && tools/qnx-vm.sh start   # image QNX 8.0 QEMU (mkqnximage)"
-echo "  tools/demo-on-qnx.sh $ARCH                       # les 4 scénarios, preuve archivée"
+echo "  tools/demo-on-qnx.sh $ARCH                       # les 4 scénarios module, preuve archivée"
+echo "  tools/demo-broker-on-qnx.sh $ARCH                # le courtier et son client, preuve archivée"

@@ -4,10 +4,10 @@
 #
 # Construit le lot de démonstration (eclat-run + les 3 modules .wasm + une politique par module,
 # empreinte calculée ici), le copie sur la cible, exécute les quatre scénarios et enregistre la
-# console telle quelle dans docs/preuves-qnx/.
+# console telle quelle dans docs/preuves/qnx800/.
 #
-# Prérequis : build/qnx-<arch>/eclat-run construit (tools/build-qnx.sh), build/wasm/*.wasm
-#             (make wasm), et une cible QNX joignable en SSH.
+# Prérequis : une cible QNX joignable en SSH. Le binaire QNX et les modules .wasm sont
+#             construits ici si besoin : la preuve est autonome.
 # Usage : QNX_SSH_PORT=2280 QNX_SSH_KEY=~/.ssh/id_ed25519_qnx_eclat tools/demo-on-qnx.sh [arch]
 set -uo pipefail
 
@@ -21,15 +21,35 @@ CLE="${QNX_SSH_KEY:-$HOME/.ssh/id_ed25519_qnx_eclat}"
 DISTANT="${QNX_SSH_DEST:-/tmp/eclat}"
 BIN="build/qnx-$ARCH/eclat-run"
 LOT="$(mktemp -d)"
-PREUVES="docs/preuves-qnx"
+PREUVES="docs/preuves/qnx800"
 
 SSH="ssh -i $CLE -p $PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
 
-for f in "$BIN" build/wasm/honneste.wasm build/wasm/hostile.wasm build/wasm/gourmand.wasm; do
+# --- Ce qu'il faut avoir sur la cible -----------------------------------------
+for f in build/wasm/honneste.wasm build/wasm/hostile.wasm build/wasm/gourmand.wasm; do
   [ -f "$f" ] || { echo "KO : $f absent" >&2; exit 2; }
 done
 
-# Politique par module. Le budget CPU n'est posé que pour le gourmand : c'est lui qui doit être tué.
+# Le binaire QNX est construit ici s'il manque (make clean, première exécution) : la preuve doit
+# être autonome. On préfère le portage amont (PR #5200) s'il est présent, sinon nos correctifs.
+if [ ! -f "$BIN" ]; then
+  echo "== binaire QNX absent : construction en cours =="
+  # shellcheck disable=SC1091
+  [ -n "${QNX_HOST:-}" ] || source "$HOME/qnx800/qnxsdp-env.sh"
+  VARIANT="$ARCH"; [ "$ARCH" = "aarch64" ] && VARIANT="aarch64le"
+  LIB="$RACINE/.deps/wamr-qnx/build/$VARIANT/iwasm/libiwasm.a"
+  if [ -f "$LIB" ]; then
+    ECLAT_WAMR_SRC="$RACINE/.deps/wamr-qnx/upstream/wasm-micro-runtime" \
+    ECLAT_WAMR_LIB="$LIB" tools/build-qnx.sh "$ARCH" >/dev/null || {
+      echo "KO : construction QNX impossible" >&2; exit 2; }
+  else
+    tools/build-qnx.sh "$ARCH" >/dev/null || {
+      echo "KO : construction QNX impossible" >&2; exit 2; }
+  fi
+fi
+
+# --- Politique par module ------------------------------------------------------
+# Le budget CPU n'est posé que pour le gourmand : c'est lui qui doit être tué.
 ecrire_politique() {  # ecrire_politique <nom> <sha256> <budget_ms>
   cat > "$LOT/$1.toml" <<EOF
 [module]
@@ -61,7 +81,7 @@ printf '\xff' | dd of="$LOT/falsifie.wasm" bs=1 seek=200 conv=notrunc status=non
 cp "$LOT/honneste.toml" "$LOT/falsifie.toml"
 
 mkdir -p "$PREUVES"
-SORTIE="$PREUVES/$(date +%Y-%m-%d)-qnx800-$ARCH.txt"
+SORTIE="$PREUVES/$(date +%Y-%m-%d)-demonstration.txt"
 
 {
   echo "# Éclat — démonstration sur cible QNX 8.0"
