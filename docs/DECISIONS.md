@@ -1,5 +1,46 @@
 # DECISIONS — journal des décisions de conception
 
+## 2026-11-12 — Éclat tourne sur QNX 8.0.0, en s'appuyant sur le portage amont #5200
+
+**Décision.** Plutôt que de maintenir nos deux correctifs, Éclat se construit sur le portage
+QNX de la PR amont #5200 (dépôt `altinayselman/wamr-qnx`, Apache-2.0, © 2026 Selman Altınay) :
+leurs patches, leur `cmake/qnx-toolchain.cmake`, leurs `scripts/fetch-upstream.sh` et
+`scripts/build-qnx.sh`, et leur recette d'image QEMU. Attribution complète dans `NOTICE`.
+
+**Pourquoi.** Leur portage est supérieur au nôtre sur les deux écarts que nous avions trouvés
+(`MAP_BELOW` plutôt que renoncer à `MAP_32BIT` ; un vrai `product-mini/platforms/qnx/` plutôt
+qu'un spécial-cas dans le CMakeLists Linux), il en traite trois que nous n'avions pas rencontrés,
+et surtout **il a été exécuté sur cible**. Le réutiliser fait gagner des jours ; le dupliquer
+n'aurait servi personne.
+
+**Ce que ça a donné, mesuré sur `QNX qnxwamr 8.0.0 2026/06/05 x86pc x86_64`** (QEMU/KVM, image
+construite par `mkqnximage --type=qemu`) — console brute archivée dans `docs/preuves-qnx/` :
+
+| Exigence | Résultat sur cible |
+|---|---|
+| ECL-04 | module honnête : 4 appels au courtier, **0 refus**, code 0 |
+| ECL-05 | module hostile : **4 refus** (`CAP_DENIED_POLICY` net_send, `CAP_DENIED_RANGE` actionneur 99999 hors ±1000, `CAP_DENIED_RANGE` capteur 42, `CAP_DENIED_POLICY` kv_put), journalisés en JSON |
+| ECL-06 | module gourmand en boucle sans fin **tué à 1,30 s** pour un budget de 300 ms |
+| ECL-07 | module falsifié (1 octet) **refusé**, empreinte citée, code 1 |
+
+Le mécanisme de mise à mort par processus enfant (`fork` + `pipe` + `poll` + `SIGKILL`) fonctionne
+sur QNX sans adaptation : c'était le choix fait après l'échec du thread chien de garde, et la cible
+le valide.
+
+**Ce que nous ajoutons, et qui n'existe ni dans #5200 ni ailleurs.** Le dépôt amont expose aux
+modules un passage de messages QNX avec une **liste blanche de noms** côté hôte. Éclat apporte un
+**moteur de politique déclaratif** : TOML à refus par défaut, plages d'identifiants et de valeurs
+par capacité, budget CPU et quota d'appels, vérification d'empreinte avant chargement, journal à
+hachage enchaîné — le tout validé par un jumeau Python indépendant (10 000 décisions comparées),
+22 mutants tués et du fuzz. C'est cette couche qui est notre contribution.
+
+**Pièges rencontrés.** `/root` n'existe pas sur QNX (dépôt dans `/tmp`) ; `ssh` sépare stdout et
+stderr en deux canaux, d'où un entrelacement illisible dans la première capture — corrigé en
+fusionnant `2>&1` **dans la commande distante**, pas côté client ; `/dev/kvm` est accessible à
+l'utilisateur par **ACL** (`getfacl` montre `user:baptiste:rw-`) alors que `id` ne liste pas le
+groupe `kvm` — un lancement sans `-enable-kvm` démarre quand même, en émulation logicielle, et
+ne produit aucune sortie série en 20 s.
+
 ## 2026-11-12 — Pas de demande de fusion amont : le portage QNX existe déjà (PR #5200)
 
 **Décision.** Aucune pull request ne sera ouverte sur `bytecodealliance/wasm-micro-runtime` pour

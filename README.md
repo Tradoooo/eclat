@@ -51,15 +51,26 @@ Sur un noyau monolithique seule la première existe ; leur superposition est l'a
       `MAP_32BIT` (drapeau `mmap` propre à Linux) et `-ldl -lpthread` (inexistants sur QNX).
 - [x] **`platform/qnx/`** : horloge native `ClockTime()`, CPU par `CLOCK_THREAD_CPUTIME_ID`.
 - [x] **`eclat-run` construit pour QNX 8.0** sur les deux cibles (`make qnx`, `make qnx QNX_ARCH=aarch64`) :
-      382 Ko, 3 bibliothèques dynamiques seulement, symboles du courtier et du runtime présents.
+      382 Ko avec nos correctifs, 656 Ko avec le portage amont #5200, 3 bibliothèques dynamiques seulement.
+- [x] **EXÉCUTÉ SUR QNX 8.0.0** (`qnxwamr 8.0.0 2026/06/05`, QEMU/KVM, image construite avec
+      `mkqnximage --type=qemu`) — les quatre exigences vérifiées sur cible, console brute
+      archivée dans [`docs/preuves-qnx/`](docs/preuves-qnx) :
+
+      | Exigence | Résultat sur QNX 8.0 |
+      |---|---|
+      | **ECL-04** | module honnête exécuté : 4 appels au courtier, **0 refus**, code 0 |
+      | **ECL-05** | module hostile : **4 refus** — `CAP_DENIED_POLICY` (net_send), `CAP_DENIED_RANGE` (actionneur 99999 hors ±1000), `CAP_DENIED_RANGE` (capteur 42), `CAP_DENIED_POLICY` (kv_put) — journalisés en JSON |
+      | **ECL-06** | module gourmand en boucle sans fin **tué par le superviseur** à 1,30 s pour un budget de 300 ms (`fork`/`pipe`/`poll`/`SIGKILL` fonctionnent sur QNX) |
+      | **ECL-07** | module falsifié (1 octet) **refusé** avec l'empreinte citée, code 1 |
 
 **Reste à faire (plus de bloquant, du travail) :**
 
-- [ ] **Exécuter sur une cible QNX** : l'image QEMU du SDP est présente mais son `ifs.bin` fait
-      0 octet (construction interrompue par une saturation disque) — à reconstruire.
-- [ ] `broker/` : le courtier en gestionnaire de ressources, imports servis par `MsgSend` (ECL-11).
-- [ ] Politique de sécurité `secpol` + banc de latence sur cible (ECL-12 à ECL-14).
-- [ ] Demande de fusion amont (ECL-16) — les deux correctifs sont prêts et testés.
+- [ ] `broker/` : le courtier en **gestionnaire de ressources QNX**, imports servis par
+      `MsgSend`/`MsgReply` au lieu d'appels de fonction (ECL-11).
+- [ ] Politique de sécurité `secpol` interdisant au runtime tout accès hors courtier (ECL-14).
+- [ ] Banc de latence **sur cible** avec la boucle à 1 kHz (ECL-12, ECL-13).
+- [ ] Contribution amont : recette `qnx-ports/build-files` (libre) — le portage WAMR, lui,
+      appartient à la PR #5200.
 
 ## Structure
 
@@ -105,6 +116,10 @@ make deps            # WAMR épinglé + wasi-sdk (empreinte vérifiée) → .dep
 make wasm runtime    # 3 modules .wasm + le chargeur eclat-run
 make test-wasm       # intégration : ECL-04/05/06/07, 12 vérifications
 make e2              # essai E2 : la couche POSIX de WAMR face à qcc (exige le SDP, make e2 E2_ARGS=--patched)
+make qnx             # eclat-run pour QNX 8.0 (nos correctifs)
+make qnx-amont       # eclat-run pour QNX 8.0 avec le portage amont #5200 — celui qui a tourné
+tools/qnx-vm.sh build && tools/qnx-vm.sh start   # image QNX 8.0 pour QEMU (mkqnximage) + démarrage
+make demo-qnx        # les 4 scénarios sur cible, console archivée dans docs/preuves-qnx/
 make spdx            # en-tête SPDX sur chaque source
 ```
 

@@ -20,13 +20,19 @@ case "$ARCH" in
   *) echo "architecture inconnue : $ARCH (x86_64 | aarch64)" >&2 ; exit 2 ;;
 esac
 
-WAMR="$RACINE/.deps/wasm-micro-runtime"
+WAMR="${ECLAT_WAMR_SRC:-$RACINE/.deps/wasm-micro-runtime}"
 mkdir -p "$RACINE/build"
 WAMR_INC="$WAMR/core/iwasm/include"
 CMAKE_BIN="$RACINE/.deps/cmake-venv/bin/cmake"
 TOOLCHAIN="$RACINE/upstream/qnx-ports/qnx.nto.toolchain.cmake"
 BUILD_WAMR="$RACINE/.deps/wamr-qnx-build-$ARCH"
 OUT="$RACINE/build/qnx-$ARCH"
+
+# ECLAT_WAMR_LIB : bibliothèque WAMR/QNX déjà construite — par exemple le portage de la PR amont
+# #5200 (scripts/build-qnx.sh de .deps/wamr-qnx). Quand elle est fournie, on n'applique PAS nos
+# correctifs et on ne reconstruit PAS WAMR : nos patches porteraient sur un arbre déjà modifié.
+WAMR_LIB="${ECLAT_WAMR_LIB:-$BUILD_WAMR/libiwasm.a}"
+if [ -n "${ECLAT_WAMR_LIB:-}" ]; then SAUTE_WAMR=1; else SAUTE_WAMR=0; fi
 
 [ -n "${QNX_HOST:-}" ] && [ -n "${QNX_TARGET:-}" ] || {
   echo "KO : QNX_HOST/QNX_TARGET absents — source tools/setup-sdp.sh d'abord" >&2; exit 2; }
@@ -35,6 +41,9 @@ OUT="$RACINE/build/qnx-$ARCH"
 [ -x "$CMAKE_BIN" ] || { echo "KO : cmake ≥ 3.31 absent (.deps/cmake-venv) — voir README" >&2; exit 2; }
 
 echo "== 1/5 correctifs amont =="
+if [ "$SAUTE_WAMR" -eq 1 ]; then
+  echo "   ignorés : bibliothèque WAMR fournie ($WAMR_LIB)"
+else
 shopt -s nullglob
 for p in "$RACINE"/upstream/wamr/patches/*.patch; do
   if git -C "$WAMR" apply --check -p1 "$p" 2>/dev/null; then
@@ -48,7 +57,14 @@ for p in "$RACINE"/upstream/wamr/patches/*.patch; do
   fi
 done
 shopt -u nullglob
+fi
 
+if [ "$SAUTE_WAMR" -eq 1 ]; then
+  echo "== 2-3/5 WAMR : bibliothèque fournie, construction ignorée =="
+  [ -f "$WAMR_LIB" ] || { echo "KO : $WAMR_LIB introuvable" >&2; exit 2; }
+  ls -la "$WAMR_LIB"
+  mkdir -p "$OUT"
+else
 echo "== 2/5 configuration cmake (cible $ARCH) =="
 # cmake ≥ 3.31 fournit Platform/QNX ; CMAKE_POLICY_VERSION_MINIMUM accommode les
 # cmake_minimum_required anciens de WAMR sous cmake 4.x.
@@ -73,6 +89,7 @@ else
   echo "   ok (journal : $OUT-wamr.log)"
 fi
 ls -la "$BUILD_WAMR"/libiwasm.a
+fi
 
 echo "== 4/5 compilation d'Éclat pour QNX =="
 CFLAGS_QNX=(-std=c11 -O2 -Wall -Wextra -Werror -D_QNX_SOURCE
@@ -88,8 +105,10 @@ echo "   $nb fichiers compilés avec qcc -V$VARIANT"
 
 echo "== 5/5 édition de liens =="
 BIN="$OUT/eclat-run"
+# -lsocket : sur QNX l'API socket BSD est dans libsocket (le shared_platform.cmake du port amont
+# fait link_libraries(socket m)). -lm : libm.so.3 existe bien sur QNX.
 "$QNX_HOST/usr/bin/qcc" "-V$VARIANT" "${CFLAGS_QNX[@]}" \
-  "$OUT"/obj/*.o "$BUILD_WAMR/libiwasm.a" -lm -o "$BIN"
+  "$OUT"/obj/*.o "$WAMR_LIB" -lsocket -lm -o "$BIN"
 echo
 echo "== résultat =="
 file "$BIN" | cut -c1-140
@@ -97,4 +116,7 @@ ls -la "$BIN"
 echo
 echo "Binaire QNX produit : $BIN"
 echo "Interpréteur attendu : /usr/lib/ldqnx-64.so.2"
-echo "Pour l'exécuter il faut une cible QNX 8.0 (matériel ou image QEMU du SDP)."
+echo
+echo "Pour l'exécuter sur cible :"
+echo "  tools/qnx-vm.sh build && tools/qnx-vm.sh start   # image QNX 8.0 QEMU (mkqnximage)"
+echo "  tools/demo-on-qnx.sh $ARCH                       # les 4 scénarios, preuve archivée"

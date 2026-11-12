@@ -142,25 +142,24 @@ dans `$QNX_TARGET/usr/include`. QNX se déclare conforme POSIX et le vérifie ic
 
 Honnêteté sur la portée du résultat :
 
-1. **Rien n'a été exécuté sur QNX.** Les binaires sont construits et vérifiés comme ELF QNX
-   (`interpreter /usr/lib/ldqnx-64.so.2`), mais aucune cible QNX 8.0 n'a encore lancé
-   `eclat-run`. L'image QEMU livrée par le SDP (`~/qnx800/images/qemu/`) est présente mais son
-   `ifs.bin` fait 0 octet : sa construction a été interrompue par une saturation du disque.
-2. **Aucun module `.wasm` n'a tourné sur QNX.** Les 12 vérifications d'intégration
-   (`make test-wasm`) tournent sur Linux.
-3. **`platform/qnx/` existe et compile** (horloge native `ClockTime`, CPU par
-   `CLOCK_THREAD_CPUTIME_ID`), mais la couche plateforme **WAMR** utilisée est encore
-   `platform/linux` + `common/posix` — c'est ce que E2 a validé. Une couche `platform/qnx`
-   dédiée côté WAMR reste à écrire si l'amont la préfère.
-4. Le courtier en gestionnaire de ressources (`broker/`, `MsgSend`/`MsgReply`), la politique
-   `secpol`, le banc de latence sur cible et la supervision HAM : tout cela reste à faire
-   (lots L8, L9).
-5. `slogger2.h` est absent des en-têtes du SDP installé : le journal des décisions part sur
-   stderr, pas vers le journal système de la cible. Branchement à faire.
-
-Ce qui a changé, c'est le **risque** : le cahier des charges conditionnait la poursuite du projet
-à E2 (« sinon on arrête là »). E2 est positif avec deux correctifs minimes, et l'interpréteur
-complet se lie pour les deux cibles. La suite est du travail, plus une inconnue bloquante.
+1. **Le portage QNX de WAMR n'est pas le nôtre.** Les exécutions sur cible s'appuient sur la
+   [PR amont #5200](https://github.com/bytecodealliance/wasm-micro-runtime/pull/5200) et le dépôt
+   `altinayselman/wamr-qnx` (Apache-2.0, © 2026 Selman Altınay) : leurs patches, leur fichier
+   d'outillage CMake, leurs scripts de construction et leur recette d'image QEMU. Voir
+   [`NOTICE`](../../NOTICE). Nos propres `patches/0001` et `0002` compilent et lient aussi
+   (`build/qnx-x86_64/eclat-run`, 382 Ko), mais ils sont inférieurs et ne seront pas soumis.
+2. **Le courtier n'est pas encore un gestionnaire de ressources QNX.** Les imports sont servis par
+   des appels de fonction dans le même processus, pas par `MsgSend`/`MsgReply` vers un `resmgr`
+   nommé dans l'espace de chemins. C'est le lot L8, et c'est ce qui manque pour l'exigence ECL-11.
+3. **Aucune politique de sécurité `secpol`** n'est encore écrite ni testée (ECL-14).
+4. **Pas de boucle de contrôle à 1 kHz** : la non-perturbation de la boucle critique (ECL-12,
+   ECL-13) n'est pas encore mesurée sur cible. Les chiffres de `docs/preuves-qnx/` sont des
+   temps d'exécution de module, pas une mesure de gigue.
+5. `platform/qnx/` (horloge native `ClockTime`, CPU par `CLOCK_THREAD_CPUTIME_ID`) compile et
+   **fonctionne sur cible** — c'est elle qui produit les mesures des preuves. En revanche le
+   journal part sur stderr : `slogger2.h` est absent des en-têtes du SDP installé.
+6. Les modules de démonstration sont compilés en `.wasm` **interprété** ; le mode AOT (ECL-18)
+   n'est pas exercé, alors que le portage amont le permet.
 
 ## Environnement de mesure
 

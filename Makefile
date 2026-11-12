@@ -26,6 +26,8 @@ MODULES   := honneste gourmand hostile
 WASM_BINS := $(patsubst %,$(BUILD)/wasm/%.wasm,$(MODULES))
 RUN_BIN   := $(BUILD)/bin/eclat-run
 QNX_ARCH ?= x86_64
+# variante de répertoire attendue par scripts/build-qnx.sh du dépôt amont wamr-qnx
+QNX_ARCH_VARIANT = $(if $(filter aarch64,$(QNX_ARCH)),aarch64le,$(QNX_ARCH))
 RUNTIME_CFLAGS := -std=c11 -O2 -Wall -Wextra -Werror -Icore/include -Iplatform/include \
                   -Iruntime -I$(WAMR_INC)
 
@@ -35,7 +37,7 @@ TEST_SRCS := $(sort $(wildcard core/tests/*.c))
 TEST_BINS := $(patsubst core/tests/%.c,$(BUILD)/bin/%,$(TEST_SRCS))
 DECIDE_BIN := $(BUILD)/bin/eclat-decide
 
-.PHONY: all core test test-san decide python python-tests differential fuzz mutants bench deps wasm runtime test-wasm e2 qnx clean size-check spdx
+.PHONY: all core test test-san decide python python-tests differential fuzz mutants bench deps wasm runtime test-wasm e2 qnx qnx-amont vm-qnx demo-qnx clean size-check spdx
 
 all: core
 
@@ -132,6 +134,26 @@ e2:
 # QNX_ARCH=x86_64 (défaut) ou aarch64.
 qnx:
 	tools/build-qnx.sh $(QNX_ARCH)
+
+# Variante « portage amont » : utilise le port QNX de la PR #5200 (dépôt altinayselman/wamr-qnx,
+# Apache-2.0, voir NOTICE) au lieu de nos propres correctifs. C'est celle qui a tourné sur cible.
+# Prérequis : .deps/wamr-qnx construit par ses propres scripts (fetch-upstream.sh, build-qnx.sh).
+WAMR_QNX_AMONT := $(DEPS)/wamr-qnx
+qnx-amont:
+	@test -f $(WAMR_QNX_AMONT)/build/$(QNX_ARCH_VARIANT)/iwasm/libiwasm.a || { \
+	  echo "KO : lancez d'abord la construction amont :"; \
+	  echo "    cd $(WAMR_QNX_AMONT) && bash scripts/fetch-upstream.sh && bash scripts/build-qnx.sh $(QNX_ARCH)"; \
+	  exit 2; }
+	ECLAT_WAMR_SRC=$(CURDIR)/$(WAMR_QNX_AMONT)/upstream/wasm-micro-runtime \
+	ECLAT_WAMR_LIB=$(CURDIR)/$(WAMR_QNX_AMONT)/build/$(QNX_ARCH_VARIANT)/iwasm/libiwasm.a \
+	  tools/build-qnx.sh $(QNX_ARCH)
+
+# Image QNX 8.0 pour QEMU (recette du dépôt amont wamr-qnx) puis démonstration sur cible.
+vm-qnx:
+	tools/qnx-vm.sh build
+
+demo-qnx:
+	tools/demo-on-qnx.sh $(QNX_ARCH)
 
 size-check:
 	python3 tools/sizecheck.py

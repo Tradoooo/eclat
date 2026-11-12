@@ -1,0 +1,64 @@
+# NOTICE — Éclat
+
+Éclat — courtier de capacités pour modules WebAssembly sur QNX 8.0.
+Copyright 2026 Baptiste Faisy. Licence Apache-2.0 (voir `LICENSE`).
+
+Ce projet **n'est pas un fork** et ne recopie l'historique d'aucun projet amont. Il construit sur
+les travaux tiers suivants, tous sous licence Apache-2.0, et les cite conformément à leurs termes.
+
+## WAMR — WebAssembly Micro Runtime
+
+- Amont : https://github.com/bytecodealliance/wasm-micro-runtime
+- Version utilisée : `WAMR-2.4.5`, commit `25bd7eb63e828e4bd242cc9b38d260b4b31c6605`
+- Copyright : Bytecode Alliance et contributeurs. Licence **Apache-2.0 WITH LLVM-exception**.
+- Usage : cloné dans `.deps/` (jamais committé), compilé pour Linux et pour QNX.
+- Nos deux correctifs (`upstream/wamr/patches/`) sont conservés comme trace de vérification
+  indépendante et **ne sont pas soumis** : la PR amont #5200 (ci-dessous) résout les mêmes écarts
+  avec de meilleures solutions. Voir `docs/DECISIONS.md`.
+
+## Portage QNX 8.0 de WAMR — PR amont #5200 et dépôt `wamr-qnx`
+
+- Pull request : https://github.com/bytecodealliance/wasm-micro-runtime/pull/5200
+  (« Add QNX 8.0 platform support », ouverte le 2026-11-04, état OPEN/MERGEABLE)
+- Dépôt d'outillage : https://github.com/altinayselman/wamr-qnx
+- Copyright 2026 **Selman Altınay**. Licence **Apache-2.0**.
+- Ce que nous utilisons, sans modification :
+  - `patches/0001-Add-QNX-8.0-platform-support.patch` — le portage lui-même
+    (`core/shared/platform/qnx/`, `product-mini/platforms/qnx/`, correctifs POSIX) ;
+  - `patches/0002-libc-builtin-print-p-with-0x-on-QNX.patch` ;
+  - `patches/0003-unit-tests-run-on-QNX.patch` ;
+  - `cmake/qnx-toolchain.cmake` — fichier d'outillage CMake pour `qcc` ;
+  - `scripts/fetch-upstream.sh`, `scripts/build-qnx.sh` — récupération et construction ;
+  - `scripts/vm/make-image.sh`, `scripts/vm/run-qemu.sh`, `scripts/vm/ifs_files.custom` —
+    construction de l'image QNX 8.0 pour QEMU (`mkqnximage --type=qemu`) et ligne de lancement,
+    dont le correctif `sshd-auth` sans lequel sshd refuse les connexions.
+- **Le portage QNX de WAMR n'est pas notre travail.** Éclat y ajoute le courtier de capacités :
+  la politique déclarative à refus par défaut, le budget CPU avec mise à mort, la vérification
+  d'empreinte, le journal à hachage enchaîné, et le moteur de décision validé par test
+  différentiel. Les scripts `tools/build-qnx.sh` et `tools/demo-on-qnx.sh` sont les nôtres et
+  n'appellent les leurs que comme boîtes noires.
+
+## wasi-sdk
+
+- Amont : https://github.com/WebAssembly/wasi-sdk
+- Version : `wasi-sdk-34` (34.0), empreinte sha256 vérifiée avant extraction
+  (`b761e3a0721dbae9c09a0059e5fdb2bf917d1b4a8a7b430fb3b5aafb0984b2c4`) — voir `VERSIONS`.
+- Licence : Apache-2.0 WITH LLVM-exception.
+- Usage : compilation des modules de démonstration en `.wasm` (`.deps/`, jamais committé).
+
+## QNX SDP 8.0
+
+- Éditeur : QNX Software Systems Limited, filiale de BlackBerry.
+- Licence : QNX Development License Agreement, classe **Non-Commercial/Academic**,
+  série 911285-10384620.
+- **Aucun binaire, en-tête ni image du SDP n'est redistribué** : le SDP reste sur la machine de
+  développement, il n'entre ni dans ce dépôt, ni dans une image Docker, ni dans un artefact CI.
+  Les fichiers de `docs/preuves-qnx/` sont des transcriptions de console produites par notre
+  propre binaire, pas des extraits du SDP.
+
+## Arbre des ports QNX
+
+- Amont : https://github.com/qnx-ports/build-files
+- Les conventions de notre recette `upstream/qnx-ports/` ont été lues sur le port `ports/zlib`
+  de cet arbre (Makefile, `common.mk`, `qnx.nto.toolchain.cmake`, répertoires `nto-*`).
+  Notre fichier d'outillage s'en inspire et le signale en en-tête.

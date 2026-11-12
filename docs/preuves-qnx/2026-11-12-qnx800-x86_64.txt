@@ -1,0 +1,72 @@
+# Éclat — démonstration sur cible QNX 8.0
+# Capturée le 2026-11-12T15:06:04+01:00 par tools/demo-on-qnx.sh
+# Hôte : 127.0.0.1:2280 (SSH), cible /tmp/eclat, architecture x86_64
+# Binaire : build/qnx-x86_64/eclat-run (655672 octets)
+# Aucune sortie n'est retouchée : c'est la console de la cible, stderr fusionné sur place.
+# (les journaisons partent sur stderr, le bilan sur stdout : l'ordre est celui de la cible)
+
+════════ Identification de la cible ════════
+QNX qnxwamr 8.0.0 2026/06/05-16:26:03EDT x86pc x86_64
+
+════════ Transfert ════════
+7 fichiers transférés
+
+════════ ECL-04 : module honnête (tout est autorisé) ════════
+[eclat log niv=1] honnete : demarrage
+[eclat log niv=1] honnete : termine, consigne appliquee
+module « honneste.wasm » (827 octets) sous politique « honneste »
+
+--- bilan ---
+appels au courtier : 4
+refus              : 0
+cpu mesuré         : 73974 ns
+temps écoulé       : 153416 ns
+tué par le budget  : non
+code du module     : 0
+code=0
+
+════════ ECL-05 : module hostile (4 accès interdits) ════════
+[eclat log niv=1] hostile : debut des tentatives
+[eclat log niv=2] {"seq":1,"module":"hostile","cap":"net_send","decision":"CAP_DENIED_POLICY"}
+[eclat log niv=2] {"seq":2,"module":"hostile","cap":"write_actuator","decision":"CAP_DENIED_RANGE"}
+[eclat log niv=2] {"seq":3,"module":"hostile","cap":"read_sensor","decision":"CAP_DENIED_RANGE"}
+[eclat log niv=2] {"seq":4,"module":"hostile","cap":"kv_put","decision":"CAP_DENIED_POLICY"}
+[eclat log niv=1] hostile : quatre tentatives, toutes refusees
+module « hostile.wasm » (850 octets) sous politique « hostile »
+
+--- bilan ---
+appels au courtier : 6
+refus              : 4
+cpu mesuré         : 152000 ns
+temps écoulé       : 426268 ns
+tué par le budget  : non
+code du module     : 0
+code=0
+
+════════ ECL-06 : module gourmand (boucle sans fin, budget 300 ms) ════════
+[eclat log niv=1] gourmand : demarrage d'une boucle sans fin
+module « gourmand.wasm » (667 octets) sous politique « gourmand »
+module tué par le superviseur : budget CPU de 300 ms dépassé
+
+--- bilan ---
+appels au courtier : 0
+refus              : 0
+cpu mesuré         : 0 ns
+temps écoulé       : 0 ns
+tué par le budget  : OUI
+code du module     : -1
+    1.30s real     1.29s user     0.00s system
+code=0
+
+════════ ECL-07 : module falsifié (1 octet modifié) ════════
+REFUSÉ (-2) : empreinte du module différente de la politique (32e7e8db3f1118cf373418d5d46ce6a3b1a956ac2348e311c553dcc6cd6a05f6...)
+module « falsifie.wasm » (827 octets) sous politique « honneste »
+
+--- bilan ---
+appels au courtier : 0
+refus              : 0
+cpu mesuré         : 0 ns
+temps écoulé       : 0 ns
+tué par le budget  : non
+code du module     : -1
+code=1
