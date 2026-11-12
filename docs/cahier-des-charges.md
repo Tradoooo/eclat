@@ -8,7 +8,7 @@ Classement interne : 2ᵉ sur 140 idées notées (15/16). Calendrier : **5 semai
 
 ## 0. Lecture rapide
 
-**Ce que c'est.** Le portage de **WAMR** (WebAssembly Micro Runtime, `bytecodealliance/wamr`) sur QNX 8.0, enrichi d'un **courtier de capacités** : un module WebAssembly tiers s'exécute dans un processus sans privilèges, et chacun de ses accès au monde extérieur (capteur, actionneur, fichier, socket) devient un message synchrone vers un gestionnaire de ressources qui décide selon une politique.
+**Ce que c'est.** Le portage de **WAMR** (WebAssembly Micro Runtime, `bytecodealliance/wasm-micro-runtime`) sur QNX 8.0, enrichi d'un **courtier de capacités** : un module WebAssembly tiers s'exécute dans un processus sans privilèges, et chacun de ses accès au monde extérieur (capteur, actionneur, fichier, socket) devient un message synchrone vers un gestionnaire de ressources qui décide selon une politique.
 
 **La promesse, en une phrase.** Du code tiers non certifié s'exécute sur un calculateur QNX critique, il ne peut rien faire d'autre que ce que la politique autorise, et la boucle de contrôle temps réel **ne bouge pas** pendant qu'il tourne.
 
@@ -281,7 +281,7 @@ M1 = moteur de capacité prouvé + WAMR sur POSIX + modules de démonstration. M
 
 1. **Dépôt public** créé pendant la période de soumission, licence ouverte visible (Apache-2.0, compatible WAMR).
 2. **Catégorie** : Open-Source Contribution & Ports.
-3. **URL amont** : `https://github.com/bytecodealliance/wamr` — **ne pas soumettre un fork** : le dépôt contient la couche de portage, les patches formatés dans `upstream/`, les fichiers de construction QNX et la documentation.
+3. **URL amont** : `https://github.com/bytecodealliance/wasm-micro-runtime` — **ne pas soumettre un fork** : le dépôt contient la couche de portage, les patches formatés dans `upstream/`, les fichiers de construction QNX et la documentation.
 4. **URL de la demande de fusion** : à renseigner (WAMR pour la couche plateforme QNX ; et/ou `qnx-ports/build-files` pour l'entrée de port).
 5. **Preuve d'usage de QNX** : `platform/qnx/*`, `broker/*_qnx.c`, `target/eclatd.c`, `image/` (buildfile + politique), captures sur QNX 8.0 avec version du SDP et cible.
 6. **Description** : trou (aucun runtime Wasm porté) → contribution (couche plateforme + courtier + politique + mesures) → preuve (tests, fuzz, mutants, histogrammes) → reproductibilité.

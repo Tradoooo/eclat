@@ -5,7 +5,7 @@ d'autre que ce que la politique autorise, et la boucle de contrôle temps réel 
 pendant qu'il tourne.
 
 **Éclat** est le portage du runtime **WAMR** (WebAssembly Micro Runtime,
-[`bytecodealliance/wamr`](https://github.com/bytecodealliance/wamr)) sur QNX 8.0, enrichi d'un
+[`bytecodealliance/wasm-micro-runtime`](https://github.com/bytecodealliance/wasm-micro-runtime)) sur QNX 8.0, enrichi d'un
 **courtier de capacités** : chaque accès d'un module WebAssembly au monde extérieur (capteur,
 actionneur, fichier, socket) devient un message synchrone vers un gestionnaire de ressources qui
 décide selon une politique déclarative.
@@ -23,43 +23,84 @@ Sur un noyau monolithique seule la première existe ; leur superposition est l'a
 
 ## État
 
-- [x] Cahier des charges ([`docs/cahier-des-charges.md`](docs/cahier-des-charges.md), 22 exigences ECL-01..22).
-- [x] Contrat gelé ([`CONTRACT.md`](CONTRACT.md)).
-- [x] `core/` : moteur de décision C11 pur + politique + budget + journal — **161 vérifications** vertes, ASan/UBSan clean (ECL-01, ECL-02, ECL-05, ECL-06).
-- [x] `host/` : jumeau Python indépendant + test différentiel — **10 000 décisions** C ↔ Python concordantes par graine, réduction au premier désaccord (ECL-03).
-- [ ] `platform/posix/` : WAMR sur Linux (ECL-04, ECL-07, ECL-08).
-- [ ] `platform/qnx/` + courtier (ECL-10..16) — nécessite le SDP QNX 8.0.
+**Vert et vérifié sur Linux, sans aucune licence QNX :**
 
-Tout ce qui est coché **se construit et se teste sur Linux, sans aucune licence QNX** : c'est le
-point d'architecture décisif du projet (deux couches plateforme partageant le même contrat).
+- [x] Cahier des charges ([`docs/cahier-des-charges.md`](docs/cahier-des-charges.md), 22 exigences ECL-01..22).
+- [x] Contrat gelé ([`CONTRACT.md`](CONTRACT.md)) + spec anglaise ([`docs/spec-en.md`](docs/spec-en.md)).
+- [x] `core/` : moteur de décision C11 pur + politique + budget + journal — **161 vérifications**, ASan/UBSan clean (ECL-01, ECL-02, ECL-05, ECL-06).
+- [x] `host/` : jumeau Python indépendant + test différentiel — **10 000 décisions** C ↔ Python concordantes par graine (ECL-03). C'est lui qui a attrapé le bug de la sentinelle `-1` ([`docs/DECISIONS.md`](docs/DECISIONS.md)).
+- [x] **Fuzz** du parseur : 3 000 entrées mutées sous ASan/UBSan, 0 plantage (ECL-08, ECL-15).
+- [x] **Mutants** : 22 régressions volontaires injectées dans `core/`, **22 tuées** — taux de détection 100 % (ECL-15).
+- [x] Chaîne d'approvisionnement : journal d'audit à **hachage enchaîné** + vérificateur indépendant, **manifeste de module signé**.
+- [x] Outillage : `eclatctl` (dont `explain`, qui déroule les 7 étapes d'une décision) et SDK `eclat-new-module` (un module testable sur Linux en 3 commandes).
+- [x] Banc de latence `capbench` (C ≈ 4 ns/décision, jumeau Python ≈ 260 ns — mesuré sur Linux, **pas** sur QNX).
+- [x] Amont : recette `qnx-ports` conforme à l'arbre réel, lettre d'accompagnement, notes de portage, versions épinglées.
+- [x] Preuves d'absence de port Wasm existant ([`docs/E5-preuves-absence.md`](docs/E5-preuves-absence.md), essai **E5**).
+
+**Bloqué par le SDP QNX 8.0 (non installé) :**
+
+- [ ] `platform/posix/` : WAMR sur Linux (ECL-04, ECL-07, ECL-08) — gratuit mais demande un clone + cmake.
+- [ ] `platform/qnx/` + courtier + politique de sécurité (ECL-10..16).
+- [ ] Essai **E2** : WAMR compile-t-il avec `qcc` ? — **le seul chemin critique du projet**.
 
 ## Structure
 
 ```
 eclat/
-├── CONTRACT.md              # contrat gelé : ABI, politique, codes, budget
-├── core/                    # C11 portable PUR : politique, décisions, budget, journal
+├── CONTRACT.md              # contrat gelé : ABI, politique, 7 étapes, budget, harnais
+├── VERSIONS                 # épinglage reproductible (vérifié / à vérifier)
+├── core/                    # C11 portable PUR : ni horloge, ni fichier, ni socket, ni allocation
 │   ├── include/eclat/       #   cap_policy.h cap_decision.h cap_budget.h cap_log.h
-│   ├── src/                 #   policy.c decision.c budget.c log.c toml.c
-│   └── tests/               #   unitaires (un binaire par exigence)
-├── platform/posix/          # couche plateforme WAMR pour Linux
-├── platform/qnx/            # couche plateforme WAMR pour QNX
-├── broker/                  # courtier (resmgr QNX)
-├── runtime/                 # intégration WAMR
-├── modules/                 # 3 modules de démonstration (.wasm)
-├── host/                    # Python 3 stdlib : cappoint, capsim, capbench
-├── upstream/                # patches WAMR + qnx-ports, lettre d'accompagnement
-└── docs/                    # spec-fr, spec-en, PORTING, DECISIONS, VALIDATION
+│   ├── src/                 #   policy.c toml.c decision.c budget.c log.c names.c
+│   └── tests/               #   un binaire par exigence
+├── host/                    # Python 3 stdlib : capsim cappoint diff eclatctl audit manifest capbench
+├── tools/                   # eclat-decide eclat-bench fuzz_harness mutants eclat-new-module gardes
+├── templates/module/        # gabarit du SDK : un module testable sur Linux sans QNX
+├── upstream/                # la contribution amont : qnx-ports/ et wamr/
+├── docs/                    # cahier, spec-en, DECISIONS, E5, sécurité mappée, 5 technos QNX, 100 idées
+├── platform/posix/          # (à venir) couche plateforme WAMR pour Linux
+├── platform/qnx/            # (à venir) couche plateforme WAMR pour QNX — exige le SDP
+├── broker/                  # (à venir) courtier, gestionnaire de ressources QNX
+└── modules/                 # (à venir) 3 modules de démonstration .wasm
 ```
 
 ## Construire et tester (n'a besoin d'aucun SDP)
 
 ```bash
-make core       # compile core/ en C11 strict -std=c11 -O2 -Wall -Wextra -Werror
-make test       # ≥ 300 vérifications, ASan/UBSan clean
-make python     # jumeau Python + cappoint/capsim
-make differential   # 10 000 décisions C ↔ Python, réduction dichotomique du 1er désaccord
+make core            # libeclat.a en C11 strict -std=c11 -O2 -Wall -Wextra -Werror
+make test            # 161 vérifications
+make test-san        # les mêmes sous ASan/UBSan
+make python-tests    # 129 tests du jumeau, de la console, de l'audit et du manifeste
+make differential    # 10 000 décisions C ↔ Python comparées
+make fuzz            # 3 000 entrées mutées sur le parseur (FUZZ_ITERATIONS pour changer)
+make mutants         # 22 mutants, tous doivent être tués
+make bench           # banc de latence C ↔ Python
+make size-check      # < 500 lignes/fichier, < 50 lignes/fonction
+make spdx            # en-tête SPDX sur chaque source
 ```
+
+Voir [`CONTRIBUTING.md`](CONTRIBUTING.md) pour les règles non négociables et les lots restants, et
+[`docs/100-idees-aller-plus-loin.md`](docs/100-idees-aller-plus-loin.md) pour les 100 pistes
+d'amélioration classées (dont 89 gratuites).
+
+## Démonstration immédiate
+
+```bash
+python3 tools/eclat-new-module.py demo --dir /tmp && cd /tmp/demo && make test
+```
+
+Un module généré, rejoué contre le vrai moteur de décision :
+
+```
+module demo — politique « demo »
+  [log niv=1] demo démarré
+  [ 1] read_sensor     id=1    valeur=0       -> CAP_OK
+  [ 2] write_actuator  id=3    valeur=2100    -> CAP_DENIED_RANGE
+  [ 3] net_send        id=9    valeur=0       -> CAP_DENIED_POLICY
+```
+
+La consigne est refusée parce que la politique borne l'actionneur à ±1000 milli-unités, et le
+réseau parce qu'aucune règle `allow` ne le couvre — **le défaut est de tout refuser**.
 
 ## Licence
 

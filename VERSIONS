@@ -1,0 +1,43 @@
+# SPDX-License-Identifier: Apache-2.0
+# Épinglage des versions — Éclat (reproductibilité).
+# Toute valeur est soit VÉRIFIÉE (source et date citées), soit marquée « À VÉRIFIER ».
+# Vérifications faites le 2026-11-12 (01 h Europe/Paris) via l'API GitHub et raw.githubusercontent.
+
+[wamr]
+upstream      = https://github.com/bytecodealliance/wasm-micro-runtime
+nom_court     = WAMR (WebAssembly Micro Runtime)
+version       = WAMR-2.4.5            # VÉRIFIÉ : dernière release, publiée le 2026-06-29
+branche       = main                  # VÉRIFIÉ : branche par défaut
+commit        = À VÉRIFIER            # à figer au premier clone (git rev-parse HEAD)
+licence       = Apache-2.0 avec exception LLVM   # À VÉRIFIER dans LICENSE avant redistribution
+
+[qnx]
+sdp           = 8.0
+arbre_ports   = https://github.com/qnx-ports/build-files
+cibles        = aarch64le, x86_64     # mêmes cibles que ports/zlib : nto-aarch64-le, nto-x86_64-o
+compilateur   = qcc / q++             # VÉRIFIÉ dans ports/zlib/qnx.nto.toolchain.cmake
+sdp_installe  = non                   # bloquant pour les lots L7 à L10
+
+[outil_wasm]
+wasi_sdk      = À VÉRIFIER            # version à épingler au premier téléchargement
+wasi_sdk_url  = https://github.com/WebAssembly/wasi-sdk/releases
+clang_wasm32  = À VÉRIFIER            # alternative : clang --target=wasm32 du SDK hôte
+
+[hote_developpement]
+os            = Ubuntu 24.04 (x86_64)
+gcc           = 13.3.0                # VÉRIFIÉ : gcc --version
+python          = 3.12.3              # VÉRIFIÉ : python3 --version ; tomllib disponible (stdlib)
+cmake         = À VÉRIFIER            # requis par WAMR, non installé au 2026-11-12
+
+[options_wamr_verifiees]
+# Noms d'options CMake VÉRIFIÉS dans doc/build_wamr.md amont (2026-11-12) :
+interpreteur  = WAMR_BUILD_INTERP
+aot           = WAMR_BUILD_AOT
+libc_interne  = WAMR_BUILD_LIBC_BUILTIN
+libc_wasi     = WAMR_BUILD_LIBC_WASI
+interp_rapide = WAMR_BUILD_FAST_INTERP
+cible         = WAMR_BUILD_TARGET
+plateforme    = WAMR_BUILD_PLATFORM
+threads       = WAMR_BUILD_THREAD_MGR
+sanitizer     = WAMR_BUILD_SANITIZER
+memoire_profil= WAMR_BUILD_MEMORY_PROFILING

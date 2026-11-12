@@ -1,0 +1,27 @@
+# SPDX-License-Identifier: Apache-2.0
+# Politique du module {{MODULE}}.
+#
+# Le défaut est de TOUT refuser : une capacité qui n'apparaît pas dans un [[allow]] est
+# refusée (CONTRACT.md §2). Pour voir ce que ça change, commente un bloc [[allow]] et relance
+# `make test`.
+#
+# sha256 : empreinte du .wasm vérifiée avant chargement. La valeur ci-dessous est un
+# PLACEHOLDER (64 zéros) — à remplacer par l'empreinte réelle dès qu'un .wasm est produit :
+#   sha256sum {{MODULE}}.wasm
+[module]
+name = "{{MODULE}}"
+sha256 = "{{SHA256}}"
+cpu_budget_ms_per_s = 50
+mem_max_kib = 2048
+calls_per_s = 200
+
+[[allow]]
+cap = "read_sensor"
+ids = [1]
+
+[[allow]]
+cap = "write_actuator"
+ids = [3]
+value_milli_range = [-1000, 1000]
+
+# cap_net_send n'est PAS autorisé : tout envoi réseau sera refusé. C'est volontaire.

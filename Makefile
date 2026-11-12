@@ -5,6 +5,11 @@ CFLAGS  ?= -std=c11 -O2 -Wall -Wextra -Werror -Icore/include
 SAN     ?=
 BUILD   := build
 LIB     := $(BUILD)/libeclat.a
+FUZZ_CFLAGS := -std=c11 -O1 -g -Wall -Wextra -Werror -Icore/include \
+               -fsanitize=address,undefined -fno-omit-frame-pointer
+FUZZ_ITERATIONS ?= 2000
+FUZZ_BIN := $(BUILD)/bin/fuzz-harness
+BENCH_BIN := $(BUILD)/bin/eclat-bench
 
 CORE_SRCS := $(sort $(wildcard core/src/*.c))
 CORE_OBJS := $(patsubst core/src/%.c,$(BUILD)/obj/%.o,$(CORE_SRCS))
@@ -12,7 +17,7 @@ TEST_SRCS := $(sort $(wildcard core/tests/*.c))
 TEST_BINS := $(patsubst core/tests/%.c,$(BUILD)/bin/%,$(TEST_SRCS))
 DECIDE_BIN := $(BUILD)/bin/eclat-decide
 
-.PHONY: all core test test-san decide python python-tests differential fuzz clean size-check spdx
+.PHONY: all core test test-san decide python python-tests differential fuzz mutants bench clean size-check spdx
 
 all: core
 
@@ -54,9 +59,24 @@ python-tests:
 differential: decide
 	python3 host/diff.py --bin $(DECIDE_BIN) --seed 1 --n 10000
 
-fuzz:
-	$(MAKE) core SAN="-fsanitize=address,undefined -fno-omit-frame-pointer" CFLAGS="-std=c11 -O1 -g -Wall -Wextra -Werror -Icore/include"
-	./tools/fuzz_policy.py 2>/dev/null || echo "fuzz_policy.py absent (lot L6)"
+fuzz: $(FUZZ_BIN)
+	python3 tools/fuzz_policy.py --bin $(FUZZ_BIN) --iterations $(FUZZ_ITERATIONS) --seed 1
+
+# Le harnais de fuzz est compilé AVEC les sources de core/ (tout en ASan/UBSan) : on ne lie
+# pas une bibliothèque non instrumentée à un binaire instrumenté.
+$(FUZZ_BIN): tools/fuzz_harness.c $(CORE_SRCS)
+	@mkdir -p $(dir $@)
+	$(CC) $(FUZZ_CFLAGS) tools/fuzz_harness.c $(CORE_SRCS) -o $@
+
+mutants:
+	python3 tools/mutants.py
+
+bench: $(BENCH_BIN)
+	python3 host/capbench.py --bin $(BENCH_BIN)
+
+$(BENCH_BIN): tools/eclat_bench.c $(LIB)
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $< $(LIB) -o $@
 
 size-check:
 	python3 tools/sizecheck.py

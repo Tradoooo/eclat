@@ -1,6 +1,6 @@
 # Contribuer à Éclat
 
-Merci de votre intérêt. Éclat est un portage de [WAMR](https://github.com/bytecodealliance/wamr)
+Merci de votre intérêt. Éclat est un portage de [WAMR](https://github.com/bytecodealliance/wasm-micro-runtime)
 et un **courtier de capacités** destiné à QNX 8.0. Le projet est candidat au
 [QNX Global Hackathon 2026](https://qnx.com) (catégorie *Open-Source Contribution & Ports*).
 

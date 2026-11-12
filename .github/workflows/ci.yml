@@ -61,3 +61,25 @@ jobs:
           fetch-depth: 1
       - name: spdx-guard
         run: make spdx
+
+  fuzz:
+    name: fuzz du parseur de politique (ASan/UBSan)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: make fuzz
+        run: make fuzz FUZZ_ITERATIONS=3000
+
+  mutants:
+    name: mutants du cœur C (taux de détection 100 %)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - name: make mutants
+        run: make mutants

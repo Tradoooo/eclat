@@ -1,5 +1,37 @@
 # DECISIONS — journal des décisions de conception
 
+## 2026-11-12 — L'URL amont du cahier des charges était fausse
+
+**Décision.** Toutes les références à `github.com/bytecodealliance/wamr` sont remplacées par
+`github.com/bytecodealliance/wasm-micro-runtime`.
+
+**Pourquoi.** Vérification du 2026-11-12 : `GET /repos/bytecodealliance/wamr` renvoie **404** et
+`git ls-remote https://github.com/bytecodealliance/wamr.git` répond « Repository not found ». Le
+dépôt réel est `bytecodealliance/wasm-micro-runtime` (6 202 ★, description « WebAssembly Micro
+Runtime (WAMR) », branche par défaut `main`, dernière release `WAMR-2.4.5` du 2026-06-29).
+Soumettre une PR vers une URL morte aurait discrédité le dossier : la catégorie exige l'URL amont.
+
+**Impact.** `README.md`, `CONTRIBUTING.md`, `docs/cahier-des-charges.md` (2 occurrences),
+`upstream/`, `VERSIONS`. Leçons consignées dans `docs/E5-preuves-absence.md`.
+
+## 2026-11-12 — E5 partiellement tranché, et E2 reformulé
+
+**Décision.** L'essai E5 (existe-t-il déjà un port WebAssembly pour QNX ?) est considéré comme
+**établi pour tout l'écosystème public open source QNX**, et toujours ouvert pour `oss.qnx.com`
+(application JavaScript non interrogeable). L'essai E2 est reformulé : il ne s'agit plus de savoir
+si « une couche POSIX générique » existe — elle n'existe pas — mais de dériver la couche QNX de
+`core/shared/platform/linux` en réutilisant `common` et le contrat de `include`.
+
+**Pourquoi.** Vérifications reproductibles du 2026-11-12 : aucune entrée Wasm dans l'index
+`qnx-ports/build-files` (~150 ports lus), `qnx-ports/wamr` en 404, recherche
+`org:qnx-ports wasm` à **0** dépôt, et côté amont 15 couches système dans
+`core/shared/platform/` **sans `qnx`** — mais 17 cibles dans `product-mini/platforms/` **dont
+`posix`**. Les ports `nuttx`, `zephyr`, `rt-thread`, `riot` et `vxworks` constituent le précédent
+à suivre pour une cible embarquée.
+
+**Impact.** `docs/E5-preuves-absence.md` (nouveau), `upstream/wamr/PORTING-NOTES.md`,
+`upstream/qnx-ports/`.
+
 ## 2026-11-11 — Format de politique : TOML standard `[module]` + `name`
 
 **Décision.** La section module s'écrit `[module]` avec une clé `name = "…"`, et non

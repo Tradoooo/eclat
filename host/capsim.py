@@ -138,26 +138,92 @@ def _parse_denies(denies, policy):
     return None
 
 
-def decide(policy, cap_name, id_, value_milli):
-    """CONTRACT.md §3 : les 7 étapes dans l'ordre strict. Retourne le nom du code."""
-    if cap_name not in CAPS:  # étape 1
+def _note(trace, n, check, outcome, detail):
+    if trace is not None:
+        trace.append({"step": n, "check": check, "outcome": outcome, "detail": detail})
+
+
+def _step5_ids(rule, id_, trace):
+    """Étape 5 : contrainte d'id inclusive. Retourne le code bloquant ou None."""
+    check = "id dans la plage autorisée ?"
+    if rule["ids"] is None:
+        _note(trace, 5, check, "pass", "aucune contrainte d'id")
+        return None
+    lo, hi = rule["ids"]
+    if id_ < lo or id_ > hi:
+        _note(trace, 5, check, "stop", "id=%d hors [%d, %d]" % (id_, lo, hi))
+        return "CAP_DENIED_RANGE"
+    _note(trace, 5, check, "pass", "id=%d dans [%d, %d]" % (id_, lo, hi))
+    return None
+
+
+def _step6_value(cap_name, rule, value_milli, trace):
+    """Étape 6 : contrainte de valeur, write_actuator seulement."""
+    check = "valeur dans la plage autorisée ?"
+    if cap_name != "write_actuator" or rule["value_milli_range"] is None:
+        _note(trace, 6, check, "pass", "non applicable")
+        return None
+    lo, hi = rule["value_milli_range"]
+    if value_milli < lo or value_milli > hi:
+        _note(trace, 6, check, "stop", "value=%d hors [%d, %d]" % (value_milli, lo, hi))
+        return "CAP_DENIED_RANGE"
+    _note(trace, 6, check, "pass", "value=%d dans [%d, %d]" % (value_milli, lo, hi))
+    return None
+
+
+def _decide(policy, cap_name, id_, value_milli, trace):
+    """CONTRACT.md §3 : les 7 étapes dans l'ordre strict.
+
+    Implémentation UNIQUE de l'algorithme de décision : `decide()` et `explain()` passent toutes
+    deux par ici, donc la décision et son explication ne peuvent pas diverger. `trace` est `None`
+    pour une décision seule (aucun dictionnaire alloué, aucun surcoût) ou une liste à remplir pour
+    obtenir le détail étape par étape.
+    """
+    if cap_name not in CAPS:
+        _note(trace, 1, "capacité connue ?", "stop", "%r n'est pas un import du contrat" % cap_name)
         return "CAP_DENIED_UNKNOWN"
-    if cap_name in policy["denies"]:  # étape 2
+    _note(trace, 1, "capacité connue ?", "pass", cap_name)
+
+    if cap_name in policy["denies"]:
+        _note(trace, 2, "interdite explicitement ?", "stop", "présente dans [[deny]]")
         return "CAP_DENIED_POLICY"
-    if cap_name in ("time_ns", "log"):  # étape 3
+    _note(trace, 2, "interdite explicitement ?", "pass", "absente de [[deny]]")
+
+    if cap_name in ("time_ns", "log"):
+        _note(trace, 3, "facilité hôte non soumise à allow ?", "stop", cap_name)
         return "CAP_OK"
+    _note(trace, 3, "facilité hôte non soumise à allow ?", "pass", "capacité soumise à politique")
+
     rule = next((a for a in policy["allows"] if a["cap"] == cap_name), None)
-    if rule is None:  # étape 4
+    if rule is None:
+        _note(trace, 4, "une règle [[allow]] existe ?", "stop", "aucune règle pour %s" % cap_name)
         return "CAP_DENIED_POLICY"
-    if rule["ids"] is not None:  # étape 5
-        lo, hi = rule["ids"]
-        if id_ < lo or id_ > hi:
-            return "CAP_DENIED_RANGE"
-    if cap_name == "write_actuator" and rule["value_milli_range"] is not None:  # étape 6
-        lo, hi = rule["value_milli_range"]
-        if value_milli < lo or value_milli > hi:
-            return "CAP_DENIED_RANGE"
-    return "CAP_OK"  # étape 7
+    _note(trace, 4, "une règle [[allow]] existe ?", "pass", "règle trouvée")
+
+    blocked = _step5_ids(rule, id_, trace)
+    if blocked:
+        return blocked
+    blocked = _step6_value(cap_name, rule, value_milli, trace)
+    if blocked:
+        return blocked
+
+    _note(trace, 7, "décision finale", "stop", "autorisé")
+    return "CAP_OK"
+
+
+def decide(policy, cap_name, id_, value_milli):
+    """Décision seule (CONTRACT.md §3). Aucune trace construite : zéro surcoût."""
+    return _decide(policy, cap_name, id_, value_milli, None)
+
+
+def explain(policy, cap_name, id_, value_milli):
+    """Décision **et** trace étape par étape. Retourne `(decision, trace)`.
+
+    La dernière entrée de la trace porte `outcome == "stop"` : c'est l'étape qui a décidé. Même
+    implémentation que `decide()` (`_decide`), donc les deux ne peuvent pas diverger.
+    """
+    trace = []
+    return _decide(policy, cap_name, id_, value_milli, trace), trace
 
 
 class Budget:

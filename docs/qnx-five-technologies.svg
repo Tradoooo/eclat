@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Éclat — cinq technologies QNX. Diagramme écrit à la main, sans dépendance. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700"
+     font-family="sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7"
+            orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#3d4a57"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="700" fill="#ffffff"/>
+
+  <!-- ============ titre ============ -->
+  <text x="30" y="40" font-size="25" font-weight="bold" fill="#1f2933">Éclat — cinq technologies QNX, trois couches d'isolation</text>
+  <text x="30" y="66" font-size="15" fill="#41505f">Bac à sable WebAssembly · processus QNX sans abilities · politique de sécurité appliquée par le noyau</text>
+  <text x="30" y="88" font-size="12.5" fill="#5b6875">Les cinq mécanismes QNX ne créent pas les couches : ils les renforcent (provenance, privilèges, défaillance, révocation, preuve).</text>
+
+  <!-- ============ couche 2 : processus sans abilities ============ -->
+  <rect x="30" y="105" width="500" height="250" rx="8" fill="#eef2f7" stroke="#55677a" stroke-width="1.5"/>
+  <text x="48" y="132" font-size="15" font-weight="bold" fill="#1f2933">Processus QNX « eclat-run » — sans abilities</text>
+  <rect x="430" y="114" width="90" height="22" rx="4" fill="#55677a"/>
+  <text x="475" y="130" font-size="11" font-weight="bold" fill="#ffffff" text-anchor="middle">COUCHE 2</text>
+
+  <!-- couche 1 : bac a sable -->
+  <rect x="55" y="150" width="450" height="175" rx="6" fill="#ffffff" stroke="#55677a" stroke-width="1.3" stroke-dasharray="5 3"/>
+  <text x="70" y="176" font-size="14" font-weight="bold" fill="#1f2933">Bac à sable WebAssembly (WAMR) — couche 1</text>
+  <text x="70" y="201" font-size="12.5" fill="#2b3642">Module .wasm tiers — code non certifié</text>
+  <text x="70" y="223" font-size="12.5" fill="#2b3642">Mémoire linéaire bornée · aucun appel système direct</text>
+  <text x="70" y="245" font-size="12.5" fill="#2b3642">Imports déclarés seulement, refusés à l'instantiation</text>
+  <text x="70" y="267" font-size="12.5" fill="#2b3642">Budget CPU dépassé → CAP_KILLED_CPU</text>
+  <text x="70" y="345" font-size="11.5" fill="#41505f">Sans ability : aucun accès privilégié, même si le runtime est corrompu.</text>
+  <circle cx="508" cy="338" r="11" fill="#55677a"/>
+  <text x="508" y="342" font-size="11" font-weight="bold" fill="#ffffff" text-anchor="middle">1</text>
+
+  <!-- ============ courtier ============ -->
+  <rect x="590" y="125" width="280" height="215" rx="8" fill="#eef4ee" stroke="#4f6b55" stroke-width="1.5"/>
+  <text x="606" y="154" font-size="15" font-weight="bold" fill="#1f2933">Courtier de capacités</text>
+  <text x="606" y="174" font-size="11.5" fill="#41505f">gestionnaire de ressources QNX (/dev/cap)</text>
+  <text x="606" y="198" font-size="12" fill="#2b3642">Moteur de décision C11 pur (core/)</text>
+  <text x="606" y="220" font-size="12" fill="#2b3642">Politique TOML — refus par défaut</text>
+  <text x="606" y="242" font-size="12" fill="#2b3642">Budget CPU + plafond mémoire</text>
+  <text x="606" y="262" font-size="12" fill="#2b3642">(fenêtre glissante d'une seconde)</text>
+  <text x="606" y="286" font-size="12" fill="#2b3642">Journal des décisions (JSON)</text>
+
+  <!-- flux : module -> courtier -> noyau -->
+  <line x1="530" y1="230" x2="585" y2="230" stroke="#3d4a57" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="557" y="222" font-size="10.5" fill="#41505f" text-anchor="middle">MsgSend</text>
+  <line x1="870" y1="230" x2="935" y2="230" stroke="#3d4a57" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="902" y="222" font-size="10.5" fill="#41505f" text-anchor="middle">MsgSend</text>
+
+  <!-- ============ couche 3 : noyau ============ -->
+  <rect x="940" y="105" width="230" height="290" rx="8" fill="#f6f1e7" stroke="#8a7550" stroke-width="1.5"/>
+  <text x="956" y="132" font-size="15" font-weight="bold" fill="#1f2933">Noyau QNX</text>
+  <rect x="1092" y="114" width="68" height="22" rx="4" fill="#8a7550"/>
+  <text x="1126" y="130" font-size="11" font-weight="bold" fill="#ffffff" text-anchor="middle">COUCHE 3</text>
+  <text x="956" y="164" font-size="12" fill="#2b3642">Politique de sécurité (secpol)</text>
+  <text x="956" y="188" font-size="12" fill="#2b3642">Seul le courtier a les droits</text>
+  <text x="956" y="212" font-size="12" fill="#2b3642">Le runtime n'a aucune ability</text>
+  <text x="956" y="240" font-size="12" fill="#2b3642">Un défaut ne franchit pas</text>
+  <text x="956" y="260" font-size="12" fill="#2b3642">le noyau</text>
+  <text x="956" y="290" font-size="12" fill="#2b3642">Les droits effectifs sont</text>
+  <text x="956" y="310" font-size="12" fill="#2b3642">appliqués par le noyau,</text>
+  <text x="956" y="330" font-size="12" fill="#2b3642">pas par le code du projet</text>
+
+  <!-- ressources -->
+  <line x1="1055" y1="395" x2="1055" y2="420" stroke="#3d4a57" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <rect x="940" y="425" width="230" height="100" rx="8" fill="#f4f5f6" stroke="#6b7683" stroke-width="1.3"/>
+  <text x="956" y="452" font-size="14" font-weight="bold" fill="#1f2933">Ressources du système</text>
+  <text x="956" y="476" font-size="12" fill="#2b3642">capteurs · actionneurs</text>
+  <text x="956" y="498" font-size="12" fill="#2b3642">clés-valeurs · canaux réseau</text>
+
+  <!-- ============ admission du module ============ -->
+  <line x1="150" y1="378" x2="150" y2="358" stroke="#3d4a57" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="158" y="372" font-size="10.5" fill="#41505f">chargement vérifié</text>
+  <rect x="30" y="380" width="240" height="145" rx="8" fill="#f7f7f5" stroke="#7d8894" stroke-width="1.3"/>
+  <text x="46" y="406" font-size="14" font-weight="bold" fill="#1f2933">Admission du module</text>
+  <text x="46" y="432" font-size="11.5" fill="#2b3642">Chemin de confiance</text>
+  <text x="46" y="452" font-size="11.5" fill="#2b3642">→ Pathtrust</text>
+  <text x="46" y="478" font-size="11.5" fill="#2b3642">Empreinte SHA-256 du .wasm</text>
+  <text x="46" y="498" font-size="11.5" fill="#2b3642">→ qcrypto</text>
+  <text x="46" y="518" font-size="11.5" fill="#2b3642">Rejet si empreinte absente</text>
+  <circle cx="245" cy="396" r="11" fill="#7d8894"/>
+  <text x="245" y="400" font-size="11" font-weight="bold" fill="#ffffff" text-anchor="middle">2</text>
+  <circle cx="245" cy="508" r="11" fill="#7d8894"/>
+  <text x="245" y="512" font-size="11" font-weight="bold" fill="#ffffff" text-anchor="middle">5</text>
+
+  <!-- ============ HAM ============ -->
+  <rect x="290" y="380" width="240" height="145" rx="8" fill="#f7f7f5" stroke="#7d8894" stroke-width="1.3"/>
+  <text x="306" y="406" font-size="14" font-weight="bold" fill="#1f2933">HAM — supervision</text>
+  <text x="306" y="432" font-size="11.5" fill="#2b3642">Runtime sous supervision</text>
+  <text x="306" y="454" font-size="11.5" fill="#2b3642">Arrêt (budget CPU, crash)</text>
+  <text x="306" y="476" font-size="11.5" fill="#2b3642">→ relance propre et ordonnée</text>
+  <text x="306" y="498" font-size="11.5" fill="#2b3642">Journal conservé</text>
+  <circle cx="505" cy="396" r="11" fill="#7d8894"/>
+  <text x="505" y="400" font-size="11" font-weight="bold" fill="#ffffff" text-anchor="middle">3</text>
+
+  <!-- ============ ionotify ============ -->
+  <line x1="745" y1="378" x2="745" y2="345" stroke="#3d4a57" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="752" y="366" font-size="10.5" fill="#41505f">notification</text>
+  <rect x="590" y="380" width="310" height="145" rx="8" fill="#f7f7f5" stroke="#7d8894" stroke-width="1.3"/>
+  <text x="606" y="406" font-size="14" font-weight="bold" fill="#1f2933">ionotify — révocation</text>
+  <text x="606" y="432" font-size="11.5" fill="#2b3642">Empreinte d'un module révoquée</text>
+  <text x="606" y="454" font-size="11.5" fill="#2b3642">→ notification diffusée à tous</text>
+  <text x="606" y="474" font-size="11.5" fill="#2b3642">les courtiers</text>
+  <text x="606" y="500" font-size="11.5" fill="#2b3642">Arrêt immédiat de l'instance</text>
+  <circle cx="875" cy="396" r="11" fill="#7d8894"/>
+  <text x="875" y="400" font-size="11" font-weight="bold" fill="#ffffff" text-anchor="middle">4</text>
+
+  <!-- ============ légende des cinq technologies ============ -->
+  <rect x="30" y="550" width="218" height="70" rx="6" fill="#fbfbfb" stroke="#c3c8ce"/>
+  <text x="44" y="571" font-size="11.5" font-weight="bold" fill="#1f2933">① abilities (procmgr_ability)</text>
+  <text x="44" y="588" font-size="10.5" fill="#2b3642">Le processus runtime n'a aucune</text>
+  <text x="44" y="602" font-size="10.5" fill="#2b3642">ability : le noyau lui refuse tout</text>
+  <text x="44" y="614" font-size="10.5" fill="#2b3642">accès privilégié.</text>
+
+  <rect x="261" y="550" width="218" height="70" rx="6" fill="#fbfbfb" stroke="#c3c8ce"/>
+  <text x="275" y="571" font-size="11.5" font-weight="bold" fill="#1f2933">② Pathtrust</text>
+  <text x="275" y="588" font-size="10.5" fill="#2b3642">Le chemin de chargement est une</text>
+  <text x="275" y="602" font-size="10.5" fill="#2b3642">entrée de confiance : un module</text>
+  <text x="275" y="614" font-size="10.5" fill="#2b3642">non déclaré n'entre pas.</text>
+
+  <rect x="491" y="550" width="218" height="70" rx="6" fill="#fbfbfb" stroke="#c3c8ce"/>
+  <text x="505" y="571" font-size="11.5" font-weight="bold" fill="#1f2933">③ HAM</text>
+  <text x="505" y="588" font-size="10.5" fill="#2b3642">Le runtime est surveillé : après</text>
+  <text x="505" y="602" font-size="10.5" fill="#2b3642">un arrêt (budget CPU), la relance</text>
+  <text x="505" y="614" font-size="10.5" fill="#2b3642">est propre et ordonnée.</text>
+
+  <rect x="722" y="550" width="218" height="70" rx="6" fill="#fbfbfb" stroke="#c3c8ce"/>
+  <text x="736" y="571" font-size="11.5" font-weight="bold" fill="#1f2933">④ ionotify</text>
+  <text x="736" y="588" font-size="10.5" fill="#2b3642">La révocation d'une empreinte est</text>
+  <text x="736" y="602" font-size="10.5" fill="#2b3642">diffusée à tous les courtiers :</text>
+  <text x="736" y="614" font-size="10.5" fill="#2b3642">arrêt immédiat du module.</text>
+
+  <rect x="952" y="550" width="218" height="70" rx="6" fill="#fbfbfb" stroke="#c3c8ce"/>
+  <text x="966" y="571" font-size="11.5" font-weight="bold" fill="#1f2933">⑤ qcrypto</text>
+  <text x="966" y="588" font-size="10.5" fill="#2b3642">Empreinte SHA-256 avant chargement</text>
+  <text x="966" y="602" font-size="10.5" fill="#2b3642">et signature des décisions</text>
+  <text x="966" y="614" font-size="10.5" fill="#2b3642">critiques (journal vérifiable).</text>
+
+  <!-- ============ note d'honnêteté ============ -->
+  <rect x="30" y="630" width="1140" height="58" rx="6" fill="#fbfbf7" stroke="#98a0a8" stroke-width="1.2"/>
+  <text x="44" y="648" font-size="11.5" fill="#2b3642">État réel (11/11/2026) — implémenté et testé sur Linux : moteur de décision C11 (161 vérifications), jumeau Python (28 tests), 10 000 décisions</text>
+  <text x="44" y="662" font-size="11.5" fill="#2b3642">différentielles C ↔ Python concordantes, ASan/UBSan propre. Non fait : le branchement QNX — le SDP QNX 8.0 n'est pas installé, rien n'est mesuré sur cible.</text>
+  <text x="44" y="676" font-size="11.5" fill="#2b3642">Aucune latence n'est annoncée. Éclat fournit une isolation et une politique — il ne prétend à aucune qualification ni certification (cahier des charges §14).</text>
+</svg>

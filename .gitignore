@@ -16,6 +16,7 @@ __pycache__/
 # fuzz / corpus
 fuzz/corpus/
 fuzz/artifacts/
+fuzz-artifacts/
 
 # éditeurs
 .vscode/
