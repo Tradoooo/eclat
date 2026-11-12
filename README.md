@@ -79,6 +79,11 @@ make preuves        # rejoue tout, régénère docs/preuves/ETAT.md (~2 min)
 
 Voir [`docs/preuves/INDEX.md`](docs/preuves/INDEX.md). Une étape sans preuve n'est pas une étape faite.
 
+Le **dossier de soumission Devpost** est dans [`docs/devpost/`](docs/devpost) (description,
+réponses, reproduction, budget/liens) et le **[script vidéo de 3 min](docs/video-script.md)** est
+prêt. Ce qui reste à démontrer côté sécurité (abilities + `secpol`) est consigné sans survente
+dans [`docs/securite-a-faire.md`](docs/securite-a-faire.md).
+
 **Reste à faire (plus de bloquant, du travail) :**
 
 - [ ] Publier le courtier sous `/dev/cap` avec `resmgr_attach()` (aujourd'hui c'est le nom

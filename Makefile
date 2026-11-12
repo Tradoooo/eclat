@@ -7,7 +7,9 @@ BUILD   := build
 LIB     := $(BUILD)/libeclat.a
 FUZZ_CFLAGS := -std=c11 -O1 -g -Wall -Wextra -Werror -Icore/include \
                -fsanitize=address,undefined -fno-omit-frame-pointer
-FUZZ_ITERATIONS ?= 2000
+# Nombre d'entrées fuzzées. 3000 : c'est le réglage des preuves archivées dans docs/preuves/,
+# pour que « make fuzz » reproduise exactement l'artefact.
+FUZZ_ITERATIONS ?= 3000
 FUZZ_BIN := $(BUILD)/bin/fuzz-harness
 BENCH_BIN := $(BUILD)/bin/eclat-bench
 

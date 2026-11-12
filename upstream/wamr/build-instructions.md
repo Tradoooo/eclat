@@ -14,7 +14,7 @@ Prérequis vérifiés sur la machine de développement : Ubuntu 24.04, `gcc 13.3
 (`tomllib` en bibliothèque standard), `make`. Aucun cmake, aucun wasi-sdk, aucune cible QNX.
 
 ```bash
-git clone https://github.com/BaptisteFaisy/eclat
+git clone https://github.com/Tradoooo/eclat
 cd eclat
 
 make core            # libeclat.a en C11 strict
