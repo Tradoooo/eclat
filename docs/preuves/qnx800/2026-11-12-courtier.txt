@@ -1,5 +1,5 @@
 # Éclat — le courtier de capacités sur cible QNX 8.0
-# Capturée le 2026-11-12T17:41:58+01:00 par tools/demo-broker-on-qnx.sh
+# Capturée le 2026-11-12T20:28:15+01:00 par tools/demo-broker-on-qnx.sh
 # Hôte : 127.0.0.1:2280 (SSH), cible /tmp/eclat-broker, architecture x86_64
 # Le courtier s'enregistre sous /dev/cap ; le client lui parle par MsgSend/MsgReply.
 # Aucune sortie n'est retouchée.

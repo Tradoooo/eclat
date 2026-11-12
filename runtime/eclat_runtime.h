@@ -14,6 +14,7 @@
 #include "eclat/cap_decision.h"
 #include "eclat/cap_policy.h"
 #include "eclat_platform.h"
+#include "eclat_transport.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -42,12 +43,16 @@ enum {
 /* Vérifie l'empreinte, charge, instancie avec les imports `cap_*` soumis à politique, exécute
  * l'export « run », puis rend la main. `wasm` pointe sur le module en mémoire.
  *
+ * Le module ne décide de rien : chaque import passe par `transport`, qui peut décider localement
+ * ou demander au courtier QNX, dans un AUTRE processus. C'est cette indirection qui porte la
+ * promesse du projet : la politique n'est appliquée que d'un seul côté.
+ *
  * Retourne ECLAT_RUN_OK si le module a été exécuté — y compris s'il a reçu des refus, car un
  * refus est un comportement normal de la politique. Retourne un code négatif sinon, et remplit
  * `err` avec le motif. `out` est renseigné dans tous les cas. */
 int eclat_runtime_run(const uint8_t *wasm, size_t len, const eclat_policy_t *policy,
-                      const eclat_platform_t *plat, eclat_run_result_t *out, char *err,
-                      size_t errlen);
+                      const eclat_transport_t *transport, const eclat_platform_t *plat,
+                      eclat_run_result_t *out, char *err, size_t errlen);
 
 #ifdef __cplusplus
 }

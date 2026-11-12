@@ -1,3 +1,4 @@
+cc -std=c11 -O1 -g -Wall -Wextra -Werror -Icore/include -fsanitize=address,undefined -fno-omit-frame-pointer tools/fuzz_harness.c core/src/budget.c core/src/decision.c core/src/log.c core/src/names.c core/src/policy.c core/src/sha256.c core/src/toml.c -o build/bin/fuzz-harness
 python3 tools/fuzz_policy.py --bin build/bin/fuzz-harness --iterations 3000 --seed 1
 FUZZ 3000 entrées : acceptées=412 refusées=2588 plantages=0
 FUZZ OK : aucun plantage, aucune erreur ASan/UBSan

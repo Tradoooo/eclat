@@ -133,6 +133,6 @@ test_ECL07_wcrt_non_entier_refuse (test_manifest.TestValidation.test_ECL07_wcrt_
 test_ECL07_wcrt_nul_refuse (test_manifest.TestValidation.test_ECL07_wcrt_nul_refuse) ... ok
 
 ----------------------------------------------------------------------
-Ran 131 tests in 0.332s
+Ran 131 tests in 0.658s
 
 OK

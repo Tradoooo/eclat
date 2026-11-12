@@ -28,7 +28,8 @@
 
 /* Contexte d'exécution, passé aux imports natifs via NativeSymbol.attachment. */
 typedef struct eclat_ctx {
-    const eclat_policy_t *policy;
+    const eclat_policy_t *policy;   /* pour l'empreinte attendue et les budgets */
+    const eclat_transport_t *transport; /* qui décide : local ou courtier distant */
     const eclat_platform_t *plat;
     eclat_budget_t budget;
     wasm_module_inst_t inst;
@@ -68,22 +69,30 @@ static void journaliser(eclat_ctx_t *c, eclat_cap_t cap, eclat_decision_t d) {
     }
 }
 
-/* Décide puis journalise. Retourne le code à rendre au module. */
-static int32_t decider(eclat_ctx_t *c, eclat_cap_t cap, int32_t id, int32_t valeur) {
-    eclat_request_t req;
-    memset(&req, 0, sizeof(req));
-    req.cap = cap;
-    req.id = id;
-    req.value_milli = valeur;
-
+/* Décide puis journalise. `payload` reçoit la valeur de retour (ex. l'échantillon du capteur).
+ * La décision vient du transport : localement, ou du courtier dans un autre processus. */
+static int32_t decider(eclat_ctx_t *c, eclat_cap_t cap, int32_t id, int32_t valeur,
+                       int32_t *payload) {
     c->calls++;
     eclat_decision_t budget = charge_appel(c);
     if (budget != ECLAT_CAP_OK) {
         c->denials++;
+        c->killed = (budget == ECLAT_CAP_KILLED_CPU) ? 1 : c->killed;
         journaliser(c, cap, budget);
         return (int32_t)budget;
     }
-    eclat_decision_t d = eclat_decide(c->policy, &req);
+    eclat_transport_reply_t rep;
+    memset(&rep, 0, sizeof(rep));
+    if (c->transport == NULL || c->transport->decide == NULL ||
+        c->transport->decide(c->transport->ctx, cap, id, valeur, &rep) != 0) {
+        c->denials++;
+        journaliser(c, cap, ECLAT_CAP_BAD_ARG);
+        return (int32_t)ECLAT_CAP_BAD_ARG;
+    }
+    if (payload != NULL) {
+        *payload = rep.payload;
+    }
+    eclat_decision_t d = (eclat_decision_t)rep.decision;
     if (d != ECLAT_CAP_OK) {
         c->denials++;
         journaliser(c, cap, d);
@@ -95,7 +104,7 @@ static int32_t decider(eclat_ctx_t *c, eclat_cap_t cap, int32_t id, int32_t vale
 
 static int64_t native_time_ns(wasm_exec_env_t env) {
     eclat_ctx_t *c = wasm_runtime_get_function_attachment(env);
-    decider(c, ECLAT_CAP_TIME_NS, -1, 0);
+    decider(c, ECLAT_CAP_TIME_NS, -1, 0, NULL);
     return (int64_t)c->plat->monotonic_ns();
 }
 
@@ -105,7 +114,7 @@ static int32_t native_log(wasm_exec_env_t env, char *msg, uint32_t len, int32_t 
     if (msg == NULL || len > MAX_LOG) {
         return (int32_t)ECLAT_CAP_BAD_ARG;
     }
-    int32_t rc = decider(c, ECLAT_CAP_LOG, level, 0);
+    int32_t rc = decider(c, ECLAT_CAP_LOG, level, 0, NULL);
     if (rc == (int32_t)ECLAT_CAP_OK) {
         c->plat->emit(level, msg, len);
     }
@@ -117,18 +126,20 @@ static int32_t native_read_sensor(wasm_exec_env_t env, int32_t id, void *out, ui
     if (out == NULL || out_len < sizeof(int32_t)) {
         return (int32_t)ECLAT_CAP_BAD_ARG;
     }
-    int32_t rc = decider(c, ECLAT_CAP_READ_SENSOR, id, 0);
+    /* La valeur vient du transport : du courtier si le module tourne contre le courtier QNX,
+     * du capteur simulé local sinon. Elle est en milli-unités : rejeu bit à bit possible. */
+    int32_t echantillon = 0;
+    int32_t rc = decider(c, ECLAT_CAP_READ_SENSOR, id, 0, &echantillon);
     if (rc != (int32_t)ECLAT_CAP_OK) {
         return rc;
     }
-    int32_t echantillon = 4200; /* capteur simulé, en milli-unités : rejeu bit à bit possible */
     memcpy(out, &echantillon, sizeof(echantillon));
     return (int32_t)ECLAT_CAP_OK;
 }
 
 static int32_t native_write_actuator(wasm_exec_env_t env, int32_t id, int32_t valeur) {
     eclat_ctx_t *c = wasm_runtime_get_function_attachment(env);
-    return decider(c, ECLAT_CAP_WRITE_ACTUATOR, id, valeur);
+    return decider(c, ECLAT_CAP_WRITE_ACTUATOR, id, valeur, NULL);
 }
 
 static int32_t native_kv(wasm_exec_env_t env, eclat_cap_t cap, void *key, uint32_t key_len,
@@ -137,7 +148,7 @@ static int32_t native_kv(wasm_exec_env_t env, eclat_cap_t cap, void *key, uint32
     if (key == NULL || key_len == 0 || val == NULL || val_len == 0) {
         return (int32_t)ECLAT_CAP_BAD_ARG;
     }
-    int32_t rc = decider(c, cap, -1, 0);
+    int32_t rc = decider(c, cap, -1, 0, NULL);
     if (rc == (int32_t)ECLAT_CAP_OK && cap == ECLAT_CAP_KV_GET) {
         memset(val, 0, val_len); /* banque vide : le contrat borne la copie, pas le contenu */
     }
@@ -157,7 +168,7 @@ static int32_t native_net_send(wasm_exec_env_t env, int32_t chan, void *buf, uin
     if (buf == NULL && len != 0) {
         return (int32_t)ECLAT_CAP_BAD_ARG;
     }
-    return decider(c, ECLAT_CAP_NET_SEND, chan, (int32_t)len);
+    return decider(c, ECLAT_CAP_NET_SEND, chan, (int32_t)len, NULL);
 }
 
 /* Signatures WAMR : « * » = pointeur borné par le runtime, « ~ » = sa longueur (i32),
@@ -266,9 +277,10 @@ static int executer(eclat_ctx_t *c, wasm_exec_env_t env, eclat_run_result_t *out
 }
 
 int eclat_runtime_run(const uint8_t *wasm, size_t len, const eclat_policy_t *policy,
-                      const eclat_platform_t *plat, eclat_run_result_t *out, char *err,
-                      size_t errlen) {
-    if (wasm == NULL || policy == NULL || plat == NULL || out == NULL || err == NULL) {
+                      const eclat_transport_t *transport, const eclat_platform_t *plat,
+                      eclat_run_result_t *out, char *err, size_t errlen) {
+    if (wasm == NULL || policy == NULL || transport == NULL || plat == NULL || out == NULL ||
+        err == NULL) {
         return ECLAT_RUN_ERR_ARG;
     }
     memset(out, 0, sizeof(*out));
@@ -283,6 +295,7 @@ int eclat_runtime_run(const uint8_t *wasm, size_t len, const eclat_policy_t *pol
     eclat_ctx_t ctx;
     memset(&ctx, 0, sizeof(ctx));
     ctx.policy = policy;
+    ctx.transport = transport;
     ctx.plat = plat;
     eclat_budget_init(&ctx.budget, policy->cpu_budget_ms_per_s, policy->calls_per_s);
 

@@ -1,0 +1,53 @@
+# Éclat — les imports du module passent par le courtier
+# Capturée le 2026-11-12T20:28:20+01:00 par tools/demo-module-via-broker.sh
+# Hôte : 127.0.0.1:2280 (SSH), cible /tmp/eclat-broker, architecture x86_64
+# eclat-run est lancé avec --broker cap : chaque import du module devient un MsgSend.
+# Le bilan (appels, refus) est donc la trace du courtier, d'un AUTRE processus.
+# Aucune sortie n'est retouchée.
+
+════════ Identification de la cible ════════
+QNX qnxwamr 8.0.0 2026/06/05-16:26:03EDT x86pc x86_64
+
+════════ Transfert ════════
+6 fichiers transférés
+
+════════ Démarrage du courtier ════════
+courtier: politique « via-broker » chargée (2 règles allow, 0 règles deny)
+courtier: à l'écoute sur cap (canal 1)
+
+════════ ECL-04 via courtier : module honnête ════════
+[eclat log niv=1] honnete : demarrage
+[eclat log niv=1] honnete : termine, consigne appliquee
+eclat: décisions prises par le courtier « cap » (autre processus)
+module « honneste.wasm » (827 octets) sous politique « via-broker »
+
+--- bilan ---
+appels au courtier : 4
+refus              : 0
+cpu mesuré         : 75309 ns
+temps écoulé       : 428527 ns
+tué par le budget  : non
+code du module     : 0
+code=0
+
+════════ ECL-05 via courtier : module hostile ════════
+[eclat log niv=1] hostile : debut des tentatives
+[eclat log niv=2] {"seq":1,"module":"via-broker","cap":"net_send","decision":"CAP_DENIED_POLICY"}
+[eclat log niv=2] {"seq":2,"module":"via-broker","cap":"write_actuator","decision":"CAP_DENIED_RANGE"}
+[eclat log niv=2] {"seq":3,"module":"via-broker","cap":"read_sensor","decision":"CAP_DENIED_RANGE"}
+[eclat log niv=2] {"seq":4,"module":"via-broker","cap":"kv_put","decision":"CAP_DENIED_POLICY"}
+[eclat log niv=1] hostile : quatre tentatives, toutes refusees
+eclat: décisions prises par le courtier « cap » (autre processus)
+module « hostile.wasm » (850 octets) sous politique « via-broker »
+
+--- bilan ---
+appels au courtier : 6
+refus              : 4
+cpu mesuré         : 196316 ns
+temps écoulé       : 1125658 ns
+tué par le budget  : non
+code du module     : 0
+code=0
+
+════════ Arrêt du courtier ════════
+arrêté

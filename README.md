@@ -63,10 +63,11 @@ Sur un noyau monolithique seule la première existe ; leur superposition est l'a
       | **ECL-06** | module gourmand en boucle sans fin **tué par le superviseur** à 1,30 s pour un budget de 300 ms (`fork`/`pipe`/`poll`/`SIGKILL` fonctionnent sur QNX) |
       | **ECL-07** | module falsifié (1 octet) **refusé** avec l'empreinte citée, code 1 |
 
-- [x] **Le courtier QNX** : il s'enregistre dans l'espace de noms de QNX et sert les imports par
-      `MsgSend`/`MsgReply`. La politique est appliquée **de l'autre côté d'une frontière de
-      message synchrone** — le capteur renvoie 4200, le réseau et l'actionneur hors plage sont
-      refusés. Preuve : [`docs/preuves/qnx800/`](docs/preuves/qnx800).
+- [x] **Le courtier QNX**, et — mieux — **les imports du module passent par lui** :
+      `eclat-run --broker cap` exécute le module et chaque import devient un `MsgSend` vers le
+      courtier, qui décide dans un **autre** processus. Le module honnête : 4 appels, 0 refus ;
+      le module hostile : 4 refus (réseau refusé, actionneur hors plage, capteur non autorisé,
+      kv_put refusé) — décidés par le courtier. Preuves : [`docs/preuves/qnx800/`](docs/preuves/qnx800).
 
 **Chaque étape livre sa preuve** — commande unique, artefact brut daté, verdict :
 
@@ -101,12 +102,12 @@ eclat/
 ├── docs/                    # cahier, spec-en, DECISIONS, E5, sécurité mappée, 5 technos QNX, 100 idées
 ├── platform/include/        # contrat de la couche plateforme (UNE déclaration)
 ├── platform/posix/          # implémentation Linux — horloge, CPU, journal
-├── runtime/                 # intégration WAMR : instanciation, imports natifs, budget
+├── runtime/                 # intégration WAMR : instanciation, imports natifs, transport, budget
 ├── modules/                 # 3 modules de démonstration (honnête, gourmand, hostile)
 ├── target/                  # eclat-run, le chargeur superviseur
 ├── tests/                   # intégration WAMR (ECL-04/05/06/07)
-├── platform/qnx/            # (à venir) couche plateforme QNX — exige le SDP
-└── broker/                  # (à venir) courtier, gestionnaire de ressources QNX
+├── platform/qnx/            # couche plateforme QNX — horloge, CPU, transport
+└── broker/                  # le courtier, serveur de messages sous « cap »
 ```
 
 Les dépendances externes (WAMR, wasi-sdk) vivent dans `.deps/`, jamais committées : le règlement

@@ -99,6 +99,19 @@ else
     "docs/preuves/qnx800/" "VM arrêtée" "-" >> "$LIGNES"
 fi
 
+echo "== preuve : les imports du module passent par le courtier =="
+ETAT_VM="$(tools/qnx-vm.sh status 2>/dev/null || true)"
+if printf '%s' "$ETAT_VM" | grep -q "en marche"; then
+  tools/demo-module-via-broker.sh >/dev/null 2>&1
+  printf '| %s | %s | %s | %s |\n' "imports du module via le courtier (MsgSend/MsgReply)" \
+    "docs/preuves/qnx800/$(date +%Y-%m-%d)-module-via-courtier.txt" "vert" "-" >> "$LIGNES"
+  echo "== imports du module via le courtier : vert"
+else
+  echo "== (VM QNX arrêtée : tools/qnx-vm.sh start pour l'activer)"
+  printf '| %s | %s | %s | %s |\n' "imports du module via le courtier (MsgSend/MsgReply)" \
+    "docs/preuves/qnx800/" "VM arrêtée" "-" >> "$LIGNES"
+fi
+
 {
   echo "# Preuves — état au $(date -Is)"
   echo

@@ -1,5 +1,28 @@
 # DECISIONS — journal des décisions de conception
 
+## 2026-11-12 — Les imports du module passent par le courtier, dans un autre processus
+
+**Décision.** Le runtime ne décide plus rien lui-même : un **transport** porte chaque import.
+Deux transports : `local` (décision dans le processus, `eclat_decide` de core/) et **QNX**
+(`MsgSend`/`MsgReply` vers le courtier, dans un autre processus). `eclat-run --broker cap` choisit
+le second. L'empreinte attendue et le budget restent au chargeur : c'est l'admission ; la
+**décision** part chez le courtier.
+
+**Pourquoi.** Avant, la frontière IPC était prouvée par un client de test, mais le module
+appelait encore la fonction en local. La promesse du projet — « la politique n'est appliquée que
+d'un seul côté » — n'était donc pas dans le chemin réel du module. Maintenant elle l'est :
+`docs/preuves/qnx800/2026-11-12-module-via-courtier.txt` montre le module honnête (4 appels,
+0 refus) et le module hostile (4 refus en JSON), chaque décision venant du courtier, d'un AUTRE
+processus.
+
+**Ce que ça laisse en place.** Le superviseur (fork + pipe + poll + SIGKILL) est réintégré :
+une réécriture d'`eclat_run.c` l'avait fait disparaître et le module gourmand bouclait sans fin ;
+la suite d'intégration l'a attrapé (`make test-wasm` bloqué sur ECL-06). Preuve de plus que le
+banc de tests vaut plus que la mémoire de l'auteur.
+
+**Reste pour clore ECL-11** : publier le courtier sous `/dev/cap` avec `resmgr_attach()` (aujourd'hui
+c'est le nom « cap », `name_attach()` refusant les chemins), et retirer les abilities au courtier.
+
 ## 2026-11-12 — Le courtier QNX : la politique passe par une frontière de message synchrone
 
 **Décision.** `broker/` tient le courtier de capacités : il s'enregistre dans l'espace de noms de
