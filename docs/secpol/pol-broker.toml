@@ -1,0 +1,14 @@
+[module]
+name = "eclat-broker-demo"
+sha256 = "abababababababababababababababababababababababababababababababab"
+cpu_budget_ms_per_s = 100
+calls_per_s = 0
+
+[[allow]]
+cap = "read_sensor"
+ids = [1]
+
+[[allow]]
+cap = "write_actuator"
+ids = [3]
+value_milli_range = [-1000, 1000]

@@ -25,7 +25,7 @@ Le résultat est écrit dans [`ETAT.md`](ETAT.md) et les artefacts sont datés d
 | Dossier | Contenu |
 |---|---|
 | `hote/` | sorties brutes des tests C, des tests sous ASan/UBSan, des tests Python, du différentiel C ↔ Python, du fuzz, des mutants, de l'intégration WAMR sur Linux |
-| `qnx800/` | console brute de la cible QNX 8.0 : identification du noyau, les quatre scénarios ECL-04/05/06/07, et la sortie du superviseur |
+| `qnx800/` | console brute de la cible QNX 8.0 : identification du noyau, les quatre scénarios ECL-04/05/06/07, la sortie du superviseur, et la preuve ECL-14 (politique `secpol` + retrait d'abilities) |
 
 ## Règles
 
@@ -36,6 +36,16 @@ Le résultat est écrit dans [`ETAT.md`](ETAT.md) et les artefacts sont datés d
   rejouer toutes.
 - **Honête.** Un échec est archivé comme un échec. Une preuve verte est une preuve verte ; une
   preuve absente n'est pas une preuve.
+
+## Les preuves QNX spécifiques
+
+| Preuve | Commande | Artefact |
+|---|---|---|
+| Les quatre scénarios module (ECL-04/05/06/07) | `tools/demo-on-qnx.sh` | `qnx800/<date>-demonstration.txt` |
+| Le courtier et son client | `tools/demo-broker-on-qnx.sh` | `qnx800/<date>-courtier.txt` |
+| Le module via le courtier | `tools/demo-module-via-broker.sh` | `qnx800/<date>-module-via-courtier.txt` |
+| La boucle 1 kHz | `tools/demo-boucle.sh` | `qnx800/<date>-boucle-1khz.txt` |
+| **ECL-14 : `secpol` + abilities** | `tools/demo-secpol-on-qnx.sh` | `qnx800/<date>-secpol-ecl14.txt` |
 
 ## Et pour les étapes à venir
 

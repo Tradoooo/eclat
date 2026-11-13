@@ -133,11 +133,14 @@ BIN="$OUT/eclat-run"
 # Le « pouls » : un battement toutes les 2 s, pour observer la cible en continu.
 "$QNX_HOST/usr/bin/qcc" "-V$VARIANT" "${CFLAGS_QNX[@]}" \
   "$OUT"/obj/broker/pouls.o -lsocket -lm -o "$OUT/eclat-pouls"
+# La sonde ECL-14 : ce que le noyau autorise et refuse a un processus type.
+"$QNX_HOST/usr/bin/qcc" "-V$VARIANT" "${CFLAGS_QNX[@]}" \
+  "$OUT"/obj/broker/sonde.o -lsocket -lm -o "$OUT/eclat-sonde"
 
 echo
 echo "== résultat =="
 file "$BIN" | cut -c1-140
-ls -la "$BIN" "$OUT/eclat-broker" "$OUT/eclat-client" "$OUT/eclat-boucle" "$OUT/eclat-pouls"
+ls -la "$BIN" "$OUT/eclat-broker" "$OUT/eclat-client" "$OUT/eclat-boucle" "$OUT/eclat-pouls" "$OUT/eclat-sonde"
 echo
 echo "Binaires QNX produits dans : $OUT"
 echo "Interpréteur attendu : /usr/lib/ldqnx-64.so.2"

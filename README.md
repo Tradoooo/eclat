@@ -81,15 +81,35 @@ Voir [`docs/preuves/INDEX.md`](docs/preuves/INDEX.md). Une étape sans preuve n'
 
 Le **dossier de soumission Devpost** est dans [`docs/devpost/`](docs/devpost) (description,
 réponses, reproduction, budget/liens) et le **[script vidéo de 3 min](docs/video-script.md)** est
-prêt. Ce qui reste à démontrer côté sécurité (abilities + `secpol`) est consigné sans survente
-dans [`docs/securite-a-faire.md`](docs/securite-a-faire.md).
+prêt.
+
+**Les trois couches d'isolation sont maintenant démontrées sur cible** (13/11) — la politique
+`secpol` et le retrait d'abilities. La preuve est archivée, brute et datée :
+[`docs/preuves/qnx800/2026-11-13-secpol-ecl14.txt`](docs/preuves/qnx800/2026-11-13-secpol-ecl14.txt),
+elle se rejoue par `tools/demo-secpol-on-qnx.sh x86_64`, et le détail est dans
+[`docs/securite-a-faire.md`](docs/securite-a-faire.md).
+
+- **Couche `secpol`** : un processus de type `eclat_runtime` joint le courtier
+  (`name_open(cap)` → OUVERT) et se voit **refuser par le noyau** tout autre canal
+  (`name_open(intrus)` → `EPERM`). Le serveur témoin est bien présent et à l'écoute : le refus
+  vient de la politique, pas de l'absence du service.
+- **Couche abilities** : un processus root qui abandonne ses abilities
+  (`procmgr_ability(DENY|LOCK|EOL)`) perd aussitôt `fork()`, `mmap(PROT_WRITE|PROT_EXEC)` et
+  l'accès aux canaux. Le verrouillage empêche la reprise.
+- **Ce que ces couches ne font pas**, dit sans survente : `secpol` restreint les canaux et les
+  abilities *privilégiées* — `fork()` reste accordé sous le type `eclat_runtime`, c'est
+  mesuré. Le retrait d'abilities retire tout, y compris ce dont le runtime a besoin pour
+  charger un module. Les deux couches se composent, elles ne se substituent pas.
 
 **Reste à faire (plus de bloquant, du travail) :**
 
 - [ ] Publier le courtier sous `/dev/cap` avec `resmgr_attach()` (aujourd'hui c'est le nom
       « cap » : `name_attach()` refuse les chemins avec des « / »), puis faire passer les imports
       du module par le courtier au lieu de l'appel de fonction.
-- [ ] Politique de sécurité `secpol` interdisant au runtime tout accès hors courtier (ECL-14).
+- [ ] Retrait **ciblé** d'abilities dans `eclat-run` (some abilities, pas toutes) — la version
+      « tout abandonner » est prouvée mais incompatible avec le chargement d'un module.
+- [ ] Embarquer la politique `secpol` dans l'image de démonstration principale et typer ses
+      services.
 - [ ] Banc de latence **sur cible** avec la boucle à 1 kHz (ECL-12, ECL-13).
 
 ## Structure
@@ -107,6 +127,7 @@ eclat/
 ├── templates/module/        # gabarit du SDK : un module testable sur Linux sans QNX
 ├── upstream/                # la contribution amont : qnx-ports/ et wamr/
 ├── docs/                    # cahier, spec-en, DECISIONS, E5, sécurité mappée, 5 technos QNX, 100 idées
+├── docs/secpol/             # la politique de sécurité QNX 8.0 (source), le scénario de preuve
 ├── platform/include/        # contrat de la couche plateforme (UNE déclaration)
 ├── platform/posix/          # implémentation Linux — horloge, CPU, journal
 ├── runtime/                 # intégration WAMR : instanciation, imports natifs, transport, budget
@@ -114,7 +135,7 @@ eclat/
 ├── target/                  # eclat-run, le chargeur superviseur
 ├── tests/                   # intégration WAMR (ECL-04/05/06/07)
 ├── platform/qnx/            # couche plateforme QNX — horloge, CPU, transport
-└── broker/                  # le courtier, serveur de messages sous « cap »
+└── broker/                  # le courtier, serveur de messages sous « cap », et la sonde de sécurité
 ```
 
 Les dépendances externes (WAMR, wasi-sdk) vivent dans `.deps/`, jamais committées : le règlement
