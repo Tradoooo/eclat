@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Éclat — site de démonstration et dossier de preuves (QNX Global Hackathon 2026). -->
+<!-- GABARIT : les marqueurs __TOKEN__ sont remplis par tools/build_site.py depuis -->
+<!-- site/content.json et docs/preuves/. Ne pas éditer ce qui suit les marqueurs. -->
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>__TITLE__</title>
+<meta name="description" content="__DESC__">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="brand">
+    <h1>🦀 __NAME__</h1>
+    <p class="tagline">__TAGLINE__</p>
+  </div>
+  <div class="head-row">
+    <nav id="nav">
+      <button data-tab="live" class="active">La cible en direct</button>
+      <button data-tab="projet">Le projet</button>
+      <button data-tab="preuves">Preuves</button>
+      <button data-tab="soumission">Soumission (EN)</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+<!-- ══════════════════ LIVE ══════════════════ -->
+<section id="live" class="tab active">
+  <h2>La cible QNX 8.0, battant en direct</h2>
+  <p class="lead">Si le dashboard local tourne (<code>make live</code>), cette page lit la cible
+  toutes les 2&nbsp;s. Sinon, elle explique quoi lancer. Chaque point est une lecture réelle du
+  capteur <b>à travers le courtier</b>, dans un autre processus.</p>
+  <div class="grid" id="liveGrid">
+    <div class="card"><div class="k">État</div><div class="v" id="etat">…</div></div>
+    <div class="card"><div class="k">Capteur (milli-unités)</div><div class="v" id="capteur">…</div></div>
+    <div class="card"><div class="k">Uptime noyau</div><div class="v" id="uptime">…</div></div>
+    <div class="card"><div class="k">Dernier battement</div><div class="v" id="ts">…</div></div>
+  </div>
+  <canvas id="courbe" width="1200" height="200"></canvas>
+  <div class="note" id="liveNote">
+    Hors ligne. Pour brancher la cible : <code>source tools/setup-sdp.sh &amp;&amp; tools/qnx-vm.sh start
+    &amp;&amp; make live</code>, puis <code>make watch</code> ou <code>vncviewer 127.0.0.1:5901</code>.
+    La courbe est une sinusoïde de 1&nbsp;Hz — la valeur évolue à chaque battement.
+  </div>
+</section>
+
+<!-- ══════════════════ PROJET ══════════════════ -->
+<section id="projet" class="tab">
+  <h2>Le projet</h2>
+  <p class="pitch">__PITCH__</p>
+  <div class="stats">
+__STATS__
+  </div>
+
+  <div class="two">
+    <div class="panel">
+      <h3>Trois couches d'isolation indépendantes</h3>
+      __LAYERS__
+    </div>
+    <div class="panel">
+      <h3>Quatre mécanismes, tous mesurés</h3>
+      __MECHANISMS__
+    </div>
+  </div>
+
+  <div class="panel">
+    <h3>Les quatre exigences, vérifiées sur un vrai noyau QNX 8.0</h3>
+    <table class="feat">
+      <thead><tr><th>Exigence</th><th></th><th>Résultat sur cible</th></tr></thead>
+      <tbody>__REQROWS__</tbody>
+    </table>
+    <p class="hint">Cible : <code>QNX qnxwamr 8.0.0 2026/06/05 x86pc x86_64</code>, image
+    <code>mkqnximage --type=qemu</code>, sous QEMU/KVM. Consoles brutes dans
+    <code>docs/preuves/qnx800/</code>.</p>
+  </div>
+
+  <div class="panel">
+    <h3>Ce qui est à nous, ce qui ne l'est pas</h3>
+    <table class="feat">
+      <thead><tr><th>Objet</th><th>Qui</th><th>Lien</th></tr></thead>
+      <tbody>__ATTRIROWS__</tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ══════════════════ PREUVES ══════════════════ -->
+<section id="preuves" class="tab">
+  <h2>Preuves — aucune affirmation sans artefact</h2>
+  <p class="lead">Chaque ligne est une preuve : une commande, un artefact brut daté, un verdict.
+  Rien n'est retouché. Régénéré par <code>tools/preuves.sh</code>.</p>
+  <div class="prose">
+    <h3>Les preuves du dépôt</h3>
+    <table>
+      <thead><tr><th>Preuve</th><th>Artefact</th><th>Verdict</th></tr></thead>
+      <tbody>__PROOFROWS__</tbody>
+    </table>
+  </div>
+  <div class="panel">
+    <h3>Console brute de la cible — démonstration (ECL-04/05/06/07)</h3>
+    <pre class="out">__CONSOLE_DEMO__</pre>
+  </div>
+  <div class="panel">
+    <h3>Console brute — les imports du module via le courtier</h3>
+    <pre class="out">__CONSOLE_TOUT__</pre>
+  </div>
+  <div class="panel">
+    <h3>Niveau d'honnêteté</h3>
+    <ul>__HONESTY__</ul>
+  </div>
+</section>
+
+<!-- ══════════════════ SOUMISSION ══════════════════ -->
+<section id="soumission" class="tab">
+  <h2>Submission — Devpost dossier (English)</h2>
+  <div class="subcard">
+    <h2>__NAME__</h2>
+    <p class="tagline">__TAGLINE_EN__</p>
+    <p><b>The gap.</b> __GAP_EN__</p>
+    <p><b>The contribution.</b> __CONTRIBUTION_EN__</p>
+    <p><b>The twin.</b> __TWIN_EN__</p>
+  </div>
+  <div class="panel">
+    <h3>Links</h3>
+    <ul class="links">__SUBLINKS__</ul>
+  </div>
+  <p class="hint">Texte complet du dossier Devpost : <code>docs/devpost/</code> dans le dépôt
+  (<code>project-description.md</code>, <code>how-we-built-it.md</code>, <code>reproduction.md</code>,
+  <code>budget-et-liens.md</code>).</p>
+</section>
+</main>
+
+<footer>
+  <span>Apache-2.0 · <a href="https://github.com/Tradoooo/eclat">github.com/Tradoooo/eclat</a></span>
+  <span>QNX Global Hackathon 2026 — Open-Source Contribution &amp; Ports</span>
+</footer>
+
+<script src="app.js"></script>
+</body>
+</html>

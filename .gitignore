@@ -27,3 +27,6 @@ fuzz-artifacts/
 *.wasm.log
 # dépendances externes (WAMR, wasi-sdk) — jamais committées
 .deps/
+
+# copie des artefacts de preuve regenerate dans le site (les sources sont docs/preuves/)
+site/preuves/

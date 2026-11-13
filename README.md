@@ -149,6 +149,23 @@ Voir [`CONTRIBUTING.md`](CONTRIBUTING.md) pour les règles non négociables et l
 [`docs/100-idees-aller-plus-loin.md`](docs/100-idees-aller-plus-loin.md) pour les 100 pistes
 d'amélioration classées (dont 89 gratuites).
 
+## Le site
+
+**https://tradoooo.github.io/eclat/** — le projet en statique : le projet, les preuves (artefacts
+bruts téléchargeables) et le dossier Devpost.
+
+L'onglet **« La cible en direct »** lit la VM QNX locale : la page servie par GitHub Pages
+interroge `http://127.0.0.1:8791/status.json` toutes les 2 s et trace la courbe du capteur —
+chaque point est une lecture réelle passée par le courtier. Pages est statique, il n'exécute
+rien : c'est le dashboard local qui fournit le flux, le site ne fait que l'afficher. Sans
+`make live`, l'onglet explique quoi lancer.
+
+```bash
+make live           # le dashboard local qui alimente la page (port 8791)
+make site           # régénère site/ depuis site/content.json et docs/preuves/
+make site-check     # garde de dérive : le site commité doit être ce que le générateur produit
+```
+
 ## ⚠ Un port QNX de WAMR est déjà en cours en amont
 
 La [PR #5200 « Add QNX 8.0 platform support »](https://github.com/bytecodealliance/wasm-micro-runtime/pull/5200)

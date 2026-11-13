@@ -41,7 +41,7 @@ TEST_SRCS := $(sort $(wildcard core/tests/*.c))
 TEST_BINS := $(patsubst core/tests/%.c,$(BUILD)/bin/%,$(TEST_SRCS))
 DECIDE_BIN := $(BUILD)/bin/eclat-decide
 
-.PHONY: all core preuves test test-san decide python python-tests differential fuzz mutants bench deps wasm runtime test-wasm e2 qnx qnx-amont vm-qnx demo-qnx watch live clean size-check spdx
+.PHONY: all core preuves test test-san decide python python-tests differential fuzz mutants bench deps wasm runtime test-wasm e2 qnx qnx-amont vm-qnx demo-qnx watch live site site-check clean size-check spdx
 
 all: core
 
@@ -174,6 +174,17 @@ demo-qnx:
 
 size-check:
 	python3 tools/sizecheck.py
+
+# Site statique (GitHub Pages) : régénéré depuis site/content.json et docs/preuves/.
+site:
+	python3 tools/build_site.py
+
+# Garde de dérive : le site commité doit être exactement ce que le générateur produit.
+site-check:
+	@rm -rf build/site-check && python3 tools/build_site.py --out build/site-check >/dev/null
+	@diff -ru site build/site-check --exclude=preuves >/dev/null \
+	  || { echo "KO : site/ est périmé — lancez 'make site' et commitez"; exit 1; }
+	@echo "OK site/ à jour"
 
 spdx:
 	python3 tools/spdx_guard.py

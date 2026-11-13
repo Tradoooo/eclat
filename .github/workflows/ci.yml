@@ -101,3 +101,19 @@ jobs:
         run: make core wasm runtime
       - name: intégration
         run: make test-wasm
+
+  # Site statique (GitHub Pages) : le site commité doit être exactement ce que le générateur
+  # produit depuis ses sources — aucune dérive entre le dépôt et ce qui part en ligne.
+  site:
+    name: site statique (garde de dérive)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: make site-check
+        run: make site-check

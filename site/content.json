@@ -1,0 +1,70 @@
+{
+  "meta": {
+    "name": "Éclat",
+    "title_fr": "Éclat — WAMR et courtier de capacités sur QNX 8.0",
+    "title_en": "Éclat — capability broker for WebAssembly on QNX 8.0",
+    "description_fr": "Du code tierce non certifié s'exécute sur un calculateur QNX critique, il ne peut rien faire d'autre que ce que la politique autorise. QNX Global Hackathon 2026 — Open-Source Contribution & Ports.",
+    "description_en": "Untrusted third-party logic on a QNX controller, held to a declarative policy by a capability broker, with proof archived. QNX Global Hackathon 2026."
+  },
+  "hero": {
+    "tagline_fr": "Un module WebAssembly tierce s'exécute sur un calculateur QNX critique — il ne peut rien faire d'autre que ce que la politique autorise, et la boucle de contrôle temps réel ne bouge pas pendant qu'il tourne.",
+    "tagline_en": "A third-party WebAssembly module runs on a safety-critical QNX controller: it can do nothing beyond what the policy allows, and the real-time control loop keeps running while it does.",
+    "pitch_fr": "« WAMR apporte le bac à sable ; Éclat apporte la frontière de capacités. Chaque accès du module devient un message synchrone vers un courtier — un autre processus — qui décide, seul, selon une politique déclarative à refus par défaut. »",
+    "pitch_en": "\"WAMR brings the sandbox; Éclat brings the capability boundary. Every module access becomes a synchronous message to a broker — a separate process — that alone decides, against a deny-by-default policy.\""
+  },
+  "stats": [
+    {"v": "11", "l": "preuves archivées (make preuves)", "l_en": "archived proofs (make preuves)"},
+    {"v": "198", "l": "vérifications C11, ASan/UBSan clean", "l_en": "C11 assertions, ASan/UBSan clean"},
+    {"v": "131", "l": "tests Python (jumeau indépendant)", "l_en": "Python tests (independent twin)"},
+    {"v": "10 000", "l": "décisions différentielles C ↔ Python", "l_en": "differential C ↔ Python decisions"},
+    {"v": "3 000", "l": "entrées fuzzées, 0 plantage", "l_en": "fuzzed inputs, 0 crashes"},
+    {"v": "22/22", "l": "mutants tués — détection 100 %", "l_en": "mutants killed — 100 % detection"},
+    {"v": "8.0", "l": "noyau QNX réel (QEMU/KVM)", "l_en": "real QNX kernel (QEMU/KVM)"}
+  ],
+  "layers": [
+    {"t_fr": "Bac à sable WebAssembly", "d_fr": "mémoire linéaire bornée, pas d'appel système direct.", "t_en": "WebAssembly sandbox", "d_en": "bounded linear memory, no direct system call."},
+    {"t_fr": "Processus QNX sans abilities", "d_fr": "le courtier tourne dans un processus dont on retire les abilities.", "t_en": "QNX process without abilities", "d_en": "the broker runs in a process whose abilities can be stripped."},
+    {"t_fr": "Politique de sécurité noyau", "d_fr": "exprimable par capacité, pas seulement par processus.", "t_en": "Kernel security policy", "d_en": "expressible per capability, not just per process."}
+  ],
+  "mechanisms": [
+    "Politique déclarative à refus par défaut (TOML) — plages d'identifiants et de valeurs par capacité.",
+    "Budget CPU avec mise à mort du processus enfant (fork + pipe + poll + SIGKILL, portables sur QNX).",
+    "Vérification d'empreinte avant chargement : un seul octet modifié refuse le module.",
+    "Journal d'audit à hachage enchaîné, avec vérificateur indépendant."
+  ],
+  "requirements": [
+    {"id": "ECL-04", "fr": "Module honnête exécuté", "res": "4 appels au courtier, 0 refus, code 0"},
+    {"id": "ECL-05", "fr": "Module hostile refusé", "res": "4 refus JSON — CAP_DENIED_POLICY (net_send), CAP_DENIED_RANGE (actionneur 99999), CAP_DENIED_RANGE (capteur 42), CAP_DENIED_POLICY (kv_put)"},
+    {"id": "ECL-06", "fr": "Module gourmand, budget 300 ms", "res": "tué par le superviseur à 1,30 s user / 1,33 s real"},
+    {"id": "ECL-07", "fr": "Module falsifié (1 octet)", "res": "chargement refusé, empreinte citée, code 1"}
+  ],
+  "honesty": [
+    "Les chiffres de gigue de la boucle 1 kHz sont dominés par l'émulateur, pas par le module : sous QEMU il n'y a ni vrai timer ni isolation vCPU (p50 ≈ centaines de µs à 1 ms, p99 en dizaines de ms).",
+    "Ce qui est prouvé : la boucle reste vivante et garde son compte de tics (3000 tics, 2999 mesures de gigue, dans chacune des 3 phases) pendant la mise à mort d'un module ennemi.",
+    "Ce qui n'est pas prouvé : la performance temps réel — elle exige une cible matérielle physique. L'artefact brut le dit lui-même.",
+    "Aucune affirmation de certification : Éclat fournit isolation et politique, pas une qualification.",
+    "La publication de /dev/cap a échoué (retour -1) : le courtier retombe sur le nom « cap ». Le chemin complet resmgr_attach/iofunc reste le chantier de finition."
+  ],
+  "attribution": [
+    {"what": "Couche plateforme QNX 8.0 de WAMR", "who": "Selman Altınay — pas nous", "url": "https://github.com/bytecodealliance/wasm-micro-runtime/pull/5200"},
+    {"what": "Recette de port WAMR pour l'arbre des ports QNX", "who": "Nous (Éclat)", "url": "https://github.com/qnx-ports/build-files/pull/337"},
+    {"what": "Courtier de capacités, moteur de politique, chaîne d'audit", "who": "Nous (Éclat)", "url": "https://github.com/Tradoooo/eclat"}
+  ],
+  "links": [
+    {"l": "Dépôt public", "u": "https://github.com/Tradoooo/eclat"},
+    {"l": "La cible en direct (dashboard local)", "u": "http://127.0.0.1:8791/"},
+    {"l": "Console graphique de l'émulateur (VNC)", "u": "vnc://127.0.0.1:5901"},
+    {"l": "Le contrat gelé (ABI, politique, codes)", "u": "https://github.com/Tradoooo/eclat/blob/main/CONTRACT.md"},
+    {"l": "Preuves brutes (docs/preuves/)", "u": "https://github.com/Tradoooo/eclat/tree/main/docs/preuves"},
+    {"l": "Notre PR amont (qnx-ports #337)", "u": "https://github.com/qnx-ports/build-files/pull/337"},
+    {"l": "La PR de portage (WAMR #5200, pas la nôtre)", "u": "https://github.com/bytecodealliance/wasm-micro-runtime/pull/5200"}
+  ],
+  "submission": {
+    "gap_fr": "WebAssembly n'est pas porté sur QNX : ~150 entrées lues dans l'index officiel qnx-ports, zéro wasm/wamr/wasi ; qnx-ports/wamr → 404 ; recherche org:qnx-ports wasm → 0 dépôt. Tout le reste y est déjà (rust, lua, grpc, ros2, tensorflow, …).",
+    "gap_en": "WebAssembly is not ported to QNX: ~150 entries read in the official qnx-ports index, zero wasm/wamr/wasi; qnx-ports/wamr → 404; search org:qnx-ports wasm → 0 repositories. Almost everything else is already there (rust, lua, grpc, ros2, tensorflow, …).",
+    "contribution_fr": "Éclat transforme chaque accès sortant d'un module en message synchrone vers un gestionnaire de ressources qui décide — d'un seul côté, dans un processus sans abilities. Ce n'est pas le portage (il existe, PR #5200, pas le nôtre) : c'est la couche au-dessus.",
+    "contribution_en": "Éclat turns every outbound access of a module into a synchronous message to a resource manager that decides — on one side only, in a process without abilities. It is not the porting (that exists, PR #5200, not ours): it is the layer above it.",
+    "twin_fr": "Le jumeau Python a gagné son pain : il a attrapé un vrai bug — la sentinelle -1 qui signifiait « pas de contrainte d'id » entrait en collision avec l'id -1 légitime. Le cœur C répondait CAP_OK là où le jumeau répondait CAP_DENIED_RANGE. Sans seconde implémentation, ce bug aurait embarquer.",
+    "twin_en": "The Python twin earned its keep: it caught a real bug — the -1 sentinel meaning \"no id constraint\" silently collided with the legitimate id -1. The C engine answered CAP_OK where the twin answered CAP_DENIED_RANGE. Without a second implementation, that bug would have shipped."
+  }
+}

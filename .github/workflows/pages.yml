@@ -1,0 +1,45 @@
+name: pages
+
+# Publie le site de démonstration (site/) sur GitHub Pages.
+# Le site est régénéré depuis ses sources (site/content.json, docs/preuves/) avant publication :
+# aucune dérive possible entre le dépôt et ce qui est en ligne.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Régénérer le site depuis content.json et docs/preuves/
+        run: python3 tools/build_site.py
+      - name: Vérifier la syntaxe JS du site
+        run: node --check site/app.js
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - name: Déployer sur GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
