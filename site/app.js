@@ -18,8 +18,13 @@
     });
   }
 
-  /* ——— la cible en direct (dashboard local, http://127.0.0.1:8791) ——— */
-  const LIVE = "http://127.0.0.1:8791/status.json";
+  /* ——— la cible en direct ——— */
+  /* Deux sources, dans cet ordre :
+     1. /status.json relatif — le site servi par eclat-live.py (même origine) ;
+     2. http://127.0.0.1:8791/status.json — le dashboard local, depuis la page publique.
+        Chrome bloque l'accès à la boucle depuis une origine publique (Local Network Access) ;
+        Firefox et Safari l'autorisent. */
+  const SOURCES = ["/status.json", "http://127.0.0.1:8791/status.json"];
   const courbe = $("courbe");
   const note = $("liveNote");
   if (!courbe) return;
@@ -58,14 +63,22 @@
     }
   }
 
+  async function lire(source) {
+    const r = await fetch(source, { cache: "no-store", mode: "cors" });
+    if (!r.ok) throw new Error("statut " + r.status);
+    return await r.json();
+  }
+
   async function maj() {
-    try {
-      const r = await fetch(LIVE, { cache: "no-store", mode: "cors" });
-      if (!r.ok) throw new Error("statut " + r.status);
-      rendu(await r.json());
-    } catch (e) {
-      /* hors ligne : on laisse le panneau d'aide initial visible */
+    for (const source of SOURCES) {
+      try {
+        const d = await lire(source);
+        if (d && d.ok !== undefined) { rendu(d); return; }
+      } catch (e) {
+        /* source suivante */
+      }
     }
+    /* aucune source n'a répondu : le panneau d'aide initial reste affiché */
   }
   maj();
   setInterval(maj, 2000);

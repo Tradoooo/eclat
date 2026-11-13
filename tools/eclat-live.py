@@ -1,25 +1,35 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
-"""Éclat — tableau de bord temps réel : la cible QNX vue dans le navigateur.
+"""Éclat — le site servi en local, avec la cible QNX en direct.
 
 Un mini-serveur local (bibliothèque standard uniquement) qui, toutes les 2 secondes, interroge
 la VM QNX par SSH (un battement du « pouls » : uptime + capteur lus VIA le courtier), garde un
-historique, et sert une page web qui se rafraîchit seule.
+historique, et sert **le site lui-même** — le même `site/index.html` que GitHub Pages publie.
+
+Pourquoi le site est servi ici aussi : GitHub Pages est en HTTPS public, et un navigateur
+moderne refuse qu'une origine publique interroge `127.0.0.1` (Local Network Access). La seule
+façon d'avoir le projet ET la courbe vivante sur une seule page est donc de servir le site
+depuis la machine qui porte la VM.
 
 Usage :
-    tools/eclat-live.py [--port 8787] [--host 127.0.0.1]
+    tools/eclat-live.py [--port 8791] [--host 127.0.0.1]
 
-Puis ouvrir http://127.0.0.1:8787/ dans le navigateur.
+Puis ouvrir http://127.0.0.1:8791/ dans le navigateur.
 Prérequis : la VM QNX lancée (tools/qnx-vm.sh start) et eclat-pouls déployé (tools/eclat-watch.sh).
 """
 import argparse
 import collections
 import datetime
 import json
+import mimetypes
+import pathlib
 import subprocess
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+RACINE = pathlib.Path(__file__).resolve().parent.parent
+SITE = RACINE / "site"
 
 DEFAUT = {"ok": False, "uptime_ms": 0, "sensor": None, "ts": ""}
 DERNIER = dict(DEFAUT)
@@ -60,68 +70,20 @@ def sondeur():
         time.sleep(2)
 
 
-PAGE = """<!doctype html>
-<html lang="fr"><head><meta charset="utf-8">
-<title>Éclat — la cible en direct</title>
-<style>
- body{font-family:system-ui,sans-serif;background:#0d1117;color:#e6edf3;margin:0;padding:2rem;}
- h1{font-size:1.5rem;margin:0 0 .2rem;} .sub{color:#8b949e;margin-bottom:1.5rem;line-height:1.4;}
- .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1rem;}
- .card{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:1rem;}
- .card .k{color:#8b949e;font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;}
- .card .v{font-size:1.7rem;font-weight:600;margin-top:.25rem;}
- .ok{color:#3fb950;} .ko{color:#f85149;}
- canvas{width:100%;height:190px;background:#161b22;border:1px solid #30363d;border-radius:10px;margin-top:1rem;}
- table{width:100%;margin-top:1rem;border-collapse:collapse;font-size:.85rem;}
- td,th{padding:.3rem .5rem;text-align:left;border-bottom:1px solid #30363d;}
- th{color:#8b949e;}
- .note{color:#8b949e;font-size:.85rem;margin-top:1.2rem;line-height:1.6;}
- code{background:#161b22;padding:.1rem .4rem;border-radius:4px;}
-</style></head><body>
-<h1>Éclat — la cible QNX en direct</h1>
-<div class="sub">Un battement toutes les 2 s : l'uptime du noyau et le capteur, lus <b>via le courtier</b>
-(dans un autre processus).</div>
-<div class="grid">
- <div class="card"><div class="k">État</div><div class="v" id="etat">…</div></div>
- <div class="card"><div class="k">Capteur (milli-unités)</div><div class="v" id="capteur">…</div></div>
- <div class="card"><div class="k">Uptime noyau</div><div class="v" id="uptime">…</div></div>
- <div class="card"><div class="k">Dernier battement</div><div class="v" id="ts">…</div></div>
-</div>
-<canvas id="courbe" width="1200" height="190"></canvas>
-<table id="recents"><tr><th>Heure</th><th>Capteur</th></tr></table>
-<div class="note">
- Chaque point de la courbe est une lecture réelle du capteur à travers la frontière de capacité
- (sinusoïde de 1 Hz — la valeur évolue). Pour la <b>console graphique</b> de l'émulateur :
- <code>vncviewer 127.0.0.1:5901</code>.
-</div>
-<script>
-function rendu(d){
-  const etat = document.getElementById("etat");
-  etat.textContent = d.ok ? "EN LIGNE" : "VM arrêtée";
-  etat.style.color = d.ok ? "#3fb950" : "#f85149";
-  document.getElementById("capteur").textContent = (d.sensor === null) ? "—" : d.sensor;
-  document.getElementById("uptime").textContent = (d.uptime_ms/1000).toFixed(1) + " s";
-  document.getElementById("ts").textContent = d.ts;
-  const hist = d.history || [];
-  const cv = document.getElementById("courbe"), x = cv.getContext("2d");
-  x.clearRect(0,0,cv.width,cv.height);
-  if (hist.length > 1) {
-    x.strokeStyle = "#3fb950"; x.lineWidth = 2; x.beginPath();
-    const min = 2000, max = 4000;
-    hist.forEach((h,i)=>{
-      const X = i/(hist.length-1)*cv.width;
-      const Y = cv.height - (h[1]-min)/(max-min)*cv.height;
-      i ? x.lineTo(X,Y) : x.moveTo(X,Y);
-    });
-    x.stroke();
-  }
-  let rows = "<tr><th>Heure</th><th>Capteur</th></tr>";
-  hist.slice(-12).reverse().forEach(h => { rows += "<tr><td>"+h[0]+"</td><td>"+h[1]+"</td></tr>"; });
-  document.getElementById("recents").innerHTML = rows;
-}
-async function maj(){ try { const r = await fetch("/status.json",{cache:"no-store"}); rendu(await r.json()); } catch(e){} }
-maj(); setInterval(maj, 2000);
-</script></body></html>"""
+TYPE_MIME = {".html": "text/html; charset=utf-8", ".css": "text/css; charset=utf-8",
+             ".js": "text/javascript; charset=utf-8", ".json": "application/json",
+             ".txt": "text/plain; charset=utf-8", ".svg": "image/svg+xml"}
+
+
+def fichier_statique(chemin: str):
+    """Résout une URL vers un fichier de site/ — jamais hors de site/."""
+    rel = chemin.lstrip("/") or "index.html"
+    cible = (SITE / rel).resolve()
+    if SITE.resolve() not in cible.parents and cible != SITE.resolve():
+        return None
+    if cible.is_dir():
+        cible = cible / "index.html"
+    return cible if cible.is_file() else None
 
 
 class Requete(BaseHTTPRequestHandler):
@@ -155,12 +117,17 @@ class Requete(BaseHTTPRequestHandler):
                 d = dict(DERNIER)
                 d["history"] = list(HISTORIQUE)
             self._envoi(json.dumps(d).encode(), "application/json")
-        elif self.path in ("/", "/index.html"):
-            self._envoi(PAGE.encode(), "text/html; charset=utf-8")
-        else:
+            return
+        chemin = self.path.split("?", 1)[0]
+        cible = fichier_statique(chemin)
+        if cible is None:
             self.send_response(404)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
             self.end_headers()
             self.wfile.write(b"404")
+            return
+        ctype = TYPE_MIME.get(cible.suffix, "application/octet-stream")
+        self._envoi(cible.read_bytes(), ctype)
 
     def log_message(self, *_):
         pass
@@ -182,6 +149,7 @@ def main():
     threading.Thread(target=sondeur, daemon=True).start()
     serveur = ThreadingHTTPServer((args.host, args.port), Requete)
     print(f"Éclat en direct : http://{args.host}:{args.port}/  (Ctrl-C pour cesser)")
+    print("Le site servi ici est le même que celui de GitHub Pages — avec la courbe vivante.")
     try:
         serveur.serve_forever()
     except KeyboardInterrupt:

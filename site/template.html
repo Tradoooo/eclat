@@ -42,9 +42,10 @@
   </div>
   <canvas id="courbe" width="1200" height="200"></canvas>
   <div class="note" id="liveNote">
-    Hors ligne. Pour brancher la cible : <code>source tools/setup-sdp.sh &amp;&amp; tools/qnx-vm.sh start
-    &amp;&amp; make live</code>, puis <code>make watch</code> ou <code>vncviewer 127.0.0.1:5901</code>.
-    La courbe est une sinusoïde de 1&nbsp;Hz — la valeur évolue à chaque battement.
+    Hors ligne — la courbe vivante exige le site servi en local : <code>make live</code>, puis
+    ouvrez <code>http://127.0.0.1:8791/</code>. C'est le même site, avec la cible qui bat.
+    Depuis cette page publique, un navigateur en HTTPS refuse d'interroger
+    <code>127.0.0.1</code> (Local Network Access) : Firefox et Safari y arrivent quand même.
   </div>
 </section>
 

@@ -148,8 +148,9 @@ qnx:
 watch:
 	tools/eclat-watch.sh $(QNX_ARCH)
 
-# La cible dans le navigateur : page web rafraîchie toutes les 2 s (uptime, capteur, courbe).
-live:
+# Le site servi en local, avec la cible en direct : page rafraîchie toutes les 2 s (uptime,
+# capteur, courbe). Le site servi est celui de GitHub Pages, régénéré d'abord.
+live: site
 	python3 tools/eclat-live.py --port $(LIVE_PORT)
 
 # Variante « portage amont » : utilise le port QNX de la PR #5200 (dépôt altinayselman/wamr-qnx,

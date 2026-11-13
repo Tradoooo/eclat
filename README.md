@@ -154,14 +154,21 @@ d'amélioration classées (dont 89 gratuites).
 **https://tradoooo.github.io/eclat/** — le projet en statique : le projet, les preuves (artefacts
 bruts téléchargeables) et le dossier Devpost.
 
-L'onglet **« La cible en direct »** lit la VM QNX locale : la page servie par GitHub Pages
-interroge `http://127.0.0.1:8791/status.json` toutes les 2 s et trace la courbe du capteur —
-chaque point est une lecture réelle passée par le courtier. Pages est statique, il n'exécute
-rien : c'est le dashboard local qui fournit le flux, le site ne fait que l'afficher. Sans
-`make live`, l'onglet explique quoi lancer.
+**Le même site, servi en local, avec la cible vivante** :
 
 ```bash
-make live           # le dashboard local qui alimente la page (port 8791)
+make live           # sert site/ sur http://127.0.0.1:8791 + la courbe du capteur, battante
+```
+
+C'est le même `site/index.html` que Pages publie, pas une autre page : le dashboard d'avant ne
+servait qu'un tableau de bord, il sert désormais **le site entier**, courbe comprise.
+
+Pourquoi les deux ? GitHub Pages est en HTTPS public, et un navigateur moderne refuse qu'une
+origine publique interroge `127.0.0.1` (Local Network Access) — mesuré, pas supposé : Chrome
+158 refuse, Firefox et Safari passent. Le flux direct exige donc que le site soit servi depuis
+la machine qui porte la VM ; la version publique reste la vitrine partageable.
+
+```bash
 make site           # régénère site/ depuis site/content.json et docs/preuves/
 make site-check     # garde de dérive : le site commité doit être ce que le générateur produit
 ```
