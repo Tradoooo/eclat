@@ -54,7 +54,7 @@
   <h2>Le projet</h2>
   <p class="pitch">« WAMR apporte le bac à sable ; Éclat apporte la frontière de capacités. Chaque accès du module devient un message synchrone vers un courtier — un autre processus — qui décide, seul, selon une politique déclarative à refus par défaut. »</p>
   <div class="stats">
-<div class="stat"><b>11</b><span>preuves archivées (make preuves)</span></div>
+<div class="stat"><b>12</b><span>preuves archivées (make preuves)</span></div>
 <div class="stat"><b>198</b><span>vérifications C11, ASan/UBSan clean</span></div>
 <div class="stat"><b>131</b><span>tests Python (jumeau indépendant)</span></div>
 <div class="stat"><b>10 000</b><span>décisions différentielles C ↔ Python</span></div>
@@ -68,8 +68,8 @@
       <h3>Trois couches d'isolation indépendantes</h3>
       <ul>
 <li><b>Bac à sable WebAssembly</b> — mémoire linéaire bornée, pas d&#x27;appel système direct.</li>
-<li><b>Processus QNX sans abilities</b> — le courtier tourne dans un processus dont on retire les abilities.</li>
-<li><b>Politique de sécurité noyau</b> — exprimable par capacité, pas seulement par processus.</li>
+<li><b>Processus QNX sans abilities</b> — un processus root qui abandonne ses abilities perd aussitôt fork(), mmap exécutable et l’accès aux canaux.</li>
+<li><b>Politique de sécurité noyau</b> — une politique secpol : le runtime joint le courtier et se voit refuser tout autre canal par le noyau.</li>
 </ul>
     </div>
     <div class="panel">
@@ -90,7 +90,8 @@
       <tbody><tr><td class="id">ECL-04</td><td><b>Module honnête exécuté</b></td><td>4 appels au courtier, 0 refus, code 0</td></tr>
 <tr><td class="id">ECL-05</td><td><b>Module hostile refusé</b></td><td>4 refus JSON — CAP_DENIED_POLICY (net_send), CAP_DENIED_RANGE (actionneur 99999), CAP_DENIED_RANGE (capteur 42), CAP_DENIED_POLICY (kv_put)</td></tr>
 <tr><td class="id">ECL-06</td><td><b>Module gourmand, budget 300 ms</b></td><td>tué par le superviseur à 1,30 s user / 1,33 s real</td></tr>
-<tr><td class="id">ECL-07</td><td><b>Module falsifié (1 octet)</b></td><td>chargement refusé, empreinte citée, code 1</td></tr></tbody>
+<tr><td class="id">ECL-07</td><td><b>Module falsifié (1 octet)</b></td><td>chargement refusé, empreinte citée, code 1</td></tr>
+<tr><td class="id">ECL-14</td><td><b>Politique de sécurité noyau</b></td><td>le runtime joint le courtier, le noyau refuse tout autre canal (EPERM)</td></tr></tbody>
     </table>
     <p class="hint">Cible : <code>QNX qnxwamr 8.0.0 2026/06/05 x86pc x86_64</code>, image
     <code>mkqnximage --type=qemu</code>, sous QEMU/KVM. Consoles brutes dans
@@ -127,7 +128,8 @@
 <tr><td>démonstration sur QNX 8.0 (ECL-04/05/06/07)</td><td><a href="preuves/2026-11-12-demonstration.txt"><code>docs/preuves/qnx800/2026-11-12-demonstration.txt</code></a></td><td class="verdict">vert</td></tr>
 <tr><td>courtier sur /cap (MsgSend/MsgReply)</td><td><a href="preuves/2026-11-12-courtier.txt"><code>docs/preuves/qnx800/2026-11-12-courtier.txt</code></a></td><td class="verdict">vert</td></tr>
 <tr><td>imports du module via le courtier (MsgSend/MsgReply)</td><td><a href="preuves/2026-11-12-module-via-courtier.txt"><code>docs/preuves/qnx800/2026-11-12-module-via-courtier.txt</code></a></td><td class="verdict">vert</td></tr>
-<tr><td>boucle 1 kHz (vivante pendant la mise à mort)</td><td><a href="preuves/2026-11-12-boucle-1khz.txt"><code>docs/preuves/qnx800/2026-11-12-boucle-1khz.txt</code></a></td><td class="verdict">vert</td></tr></tbody>
+<tr><td>boucle 1 kHz (vivante pendant la mise à mort)</td><td><a href="preuves/2026-11-12-boucle-1khz.txt"><code>docs/preuves/qnx800/2026-11-12-boucle-1khz.txt</code></a></td><td class="verdict">vert</td></tr>
+<tr><td>ECL-14 : secpol (runtime joint le courtier, refuse ailleurs) + abilities</td><td><a href="preuves/2026-11-13-secpol-ecl14.txt"><code>docs/preuves/qnx800/2026-11-13-secpol-ecl14.txt</code></a></td><td class="verdict">vert</td></tr></tbody>
     </table>
   </div>
   <div class="panel">

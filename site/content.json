@@ -13,7 +13,7 @@
     "pitch_en": "\"WAMR brings the sandbox; Éclat brings the capability boundary. Every module access becomes a synchronous message to a broker — a separate process — that alone decides, against a deny-by-default policy.\""
   },
   "stats": [
-    {"v": "11", "l": "preuves archivées (make preuves)", "l_en": "archived proofs (make preuves)"},
+    {"v": "12", "l": "preuves archivées (make preuves)", "l_en": "archived proofs (make preuves)"},
     {"v": "198", "l": "vérifications C11, ASan/UBSan clean", "l_en": "C11 assertions, ASan/UBSan clean"},
     {"v": "131", "l": "tests Python (jumeau indépendant)", "l_en": "Python tests (independent twin)"},
     {"v": "10 000", "l": "décisions différentielles C ↔ Python", "l_en": "differential C ↔ Python decisions"},
@@ -23,8 +23,8 @@
   ],
   "layers": [
     {"t_fr": "Bac à sable WebAssembly", "d_fr": "mémoire linéaire bornée, pas d'appel système direct.", "t_en": "WebAssembly sandbox", "d_en": "bounded linear memory, no direct system call."},
-    {"t_fr": "Processus QNX sans abilities", "d_fr": "le courtier tourne dans un processus dont on retire les abilities.", "t_en": "QNX process without abilities", "d_en": "the broker runs in a process whose abilities can be stripped."},
-    {"t_fr": "Politique de sécurité noyau", "d_fr": "exprimable par capacité, pas seulement par processus.", "t_en": "Kernel security policy", "d_en": "expressible per capability, not just per process."}
+    {"t_fr": "Processus QNX sans abilities", "d_fr": "un processus root qui abandonne ses abilities perd aussitôt fork(), mmap exécutable et l’accès aux canaux.", "t_en": "QNX process without abilities", "d_en": "a root process that drops its abilities immediately loses fork(), executable mmap and channel access."},
+    {"t_fr": "Politique de sécurité noyau", "d_fr": "une politique secpol : le runtime joint le courtier et se voit refuser tout autre canal par le noyau.", "t_en": "Kernel security policy", "d_en": "a secpol policy: the runtime reaches the broker and is refused every other channel by the kernel."}
   ],
   "mechanisms": [
     "Politique déclarative à refus par défaut (TOML) — plages d'identifiants et de valeurs par capacité.",
@@ -36,7 +36,8 @@
     {"id": "ECL-04", "fr": "Module honnête exécuté", "res": "4 appels au courtier, 0 refus, code 0"},
     {"id": "ECL-05", "fr": "Module hostile refusé", "res": "4 refus JSON — CAP_DENIED_POLICY (net_send), CAP_DENIED_RANGE (actionneur 99999), CAP_DENIED_RANGE (capteur 42), CAP_DENIED_POLICY (kv_put)"},
     {"id": "ECL-06", "fr": "Module gourmand, budget 300 ms", "res": "tué par le superviseur à 1,30 s user / 1,33 s real"},
-    {"id": "ECL-07", "fr": "Module falsifié (1 octet)", "res": "chargement refusé, empreinte citée, code 1"}
+    {"id": "ECL-07", "fr": "Module falsifié (1 octet)", "res": "chargement refusé, empreinte citée, code 1"},
+    {"id": "ECL-14", "fr": "Politique de sécurité noyau", "res": "le runtime joint le courtier, le noyau refuse tout autre canal (EPERM)"}
   ],
   "honesty": [
     "Les chiffres de gigue de la boucle 1 kHz sont dominés par l'émulateur, pas par le module : sous QEMU il n'y a ni vrai timer ni isolation vCPU (p50 ≈ centaines de µs à 1 ms, p99 en dizaines de ms).",

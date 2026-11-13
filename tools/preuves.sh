@@ -125,6 +125,29 @@ else
     "docs/preuves/qnx800/" "VM arrêtée" "-" >> "$LIGNES"
 fi
 
+echo "== preuve : ECL-14 — politique secpol et retrait d'abilities =="
+# Cette preuve a ses propres exigences : un SDP QNX 8.0 (secpolcompile, qcc, mkifs) et un
+# lanceur QEMU. Elle construit une image dédiée, pousse la politique dans procnto et archive
+# la console série. Sans SDP, elle est déclarée absente — jamais « verte par défaut ».
+if [ -n "${QNX_HOST:-}" ] && [ -n "${QNX_TARGET:-}" ] &&
+   command -v secpolcompile >/dev/null 2>&1 &&
+   command -v "${QEMU:-qemu-system-x86_64}" >/dev/null 2>&1; then
+  if tools/demo-secpol-on-qnx.sh >/dev/null 2>&1; then
+    printf '| %s | %s | %s | %s |\n' "ECL-14 : secpol (runtime joint le courtier, refuse ailleurs) + abilities" \
+      "docs/preuves/qnx800/$(date +%Y-%m-%d)-secpol-ecl14.txt" "vert" "-" >> "$LIGNES"
+    echo "== ECL-14 (secpol + abilities) : vert"
+  else
+    FAILURES=$((FAILURES + 1))
+    printf '| %s | %s | %s | %s |\n' "ECL-14 : secpol (runtime joint le courtier, refuse ailleurs) + abilities" \
+      "docs/preuves/qnx800/$(date +%Y-%m-%d)-secpol-ecl14.txt" "ÉCHEC" "-" >> "$LIGNES"
+    echo "== ECL-14 (secpol + abilities) : ÉCHEC"
+  fi
+else
+  echo "== (ECL-14 nécessite un SDP QNX 8.0 et un lanceur QEMU : tools/demo-secpol-on-qnx.sh)"
+  printf '| %s | %s | %s | %s |\n' "ECL-14 : secpol (runtime joint le courtier, refuse ailleurs) + abilities" \
+    "docs/preuves/qnx800/" "SDP ou QEMU absent" "-" >> "$LIGNES"
+fi
+
 {
   echo "# Preuves — état au $(date -Is)"
   echo

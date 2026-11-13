@@ -1,4 +1,4 @@
-# Preuves — état au 2026-11-12T21:29:19+01:00
+# Preuves — état au 2026-11-13T15:47:00+01:00
 
 Généré par `tools/preuves.sh`. Chaque ligne est une preuve : une commande, un artefact
 brut daté, un verdict. Rien n'est retouché.
@@ -16,5 +16,6 @@ brut daté, un verdict. Rien n'est retouché.
 | courtier sur /cap (MsgSend/MsgReply) | docs/preuves/qnx800/2026-11-12-courtier.txt | vert | - |
 | imports du module via le courtier (MsgSend/MsgReply) | docs/preuves/qnx800/2026-11-12-module-via-courtier.txt | vert | - |
 | boucle 1 kHz (vivante pendant la mise à mort) | docs/preuves/qnx800/2026-11-12-boucle-1khz.txt | vert | - |
+| ECL-14 : secpol (runtime joint le courtier, refuse ailleurs) + abilities | docs/preuves/qnx800/2026-11-13-secpol-ecl14.txt | vert | - |
 
 **Toutes les preuves exécutées sont vertes.**

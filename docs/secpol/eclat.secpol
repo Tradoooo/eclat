@@ -1,0 +1,42 @@
+# SPDX-License-Identifier: Apache-2.0
+# Éclat — politique de sécurité QNX 8.0 (exigence ECL-14).
+#
+# Ce fichier est compilé par `secpolcompile` (SDP QNX 8.0) en `secpol.bin`, embarqué dans
+# l'image de la cible à /proc/boot/secpol.bin, puis poussé dans procnto au démarrage par
+# `secpolpush`. À partir de là, le noyau applique ces règles : un processus n'a que ce que
+# son type lui accorde, et le refus est par défaut.
+#
+# Ce qui est démontré : le processus du RUNTIME (celui qui héberge le module WebAssembly non
+# certifié) ne peut joindre QUE le canal du courtier. Tout autre canal lui est refusé par le
+# noyau (EPERM), alors même qu'il tourne en root.
+
+# Le courtier de capacités : il décide. C'est le seul processus joignable par le runtime.
+type eclat_broker;
+
+# Le runtime : il exécute le module tierce. Il ne doit rien pouvoir joindre d'autre.
+type eclat_runtime;
+
+# Un serveur témoin, distinct du courtier : c'est la cible de refus. Il prouve que le refus
+# du runtime n'est pas « ce nom n'existe pas » mais bien « la politique l'interdit ».
+type eclat_intrus;
+
+# --- Le courtier ------------------------------------------------------------
+# Il publie son nom dans l'espace de noms (/dev/name/local/cap) et son chemin /dev/cap.
+allow_attach eclat_broker /dev/name/local/cap;
+allow_attach eclat_broker /dev/cap;
+allow eclat_broker self:ability {
+    public_channel
+    pathspace
+};
+
+# --- Le serveur témoin ------------------------------------------------------
+# Service normal : il publie son nom et rien d'autre.
+allow_attach eclat_intrus /dev/name/local/intrus;
+allow eclat_intrus self:ability {
+    public_channel
+};
+
+# --- Le runtime -------------------------------------------------------------
+# UNE seule autorisation : se connecter au canal du courtier.
+# Rien d'autre — pas de canal public, pas d'attache, pas de nouveau processus.
+allow eclat_runtime eclat_broker : channel connect;
