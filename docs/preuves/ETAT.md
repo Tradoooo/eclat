@@ -17,5 +17,6 @@ brut daté, un verdict. Rien n'est retouché.
 | imports du module via le courtier (MsgSend/MsgReply) | docs/preuves/qnx800/2026-11-12-module-via-courtier.txt | vert | - |
 | boucle 1 kHz (vivante pendant la mise à mort) | docs/preuves/qnx800/2026-11-12-boucle-1khz.txt | vert | - |
 | ECL-14 : secpol (runtime joint le courtier, refuse ailleurs) + abilities | docs/preuves/qnx800/2026-11-13-secpol-ecl14.txt | vert | - |
+| ECL-14 couche 3 : retrait ciblé d'abilities (W+X refusé, fork/lecture/canal conservés) | docs/preuves/qnx800/2026-11-14-secpol-ecl14.txt | vert | - |
 
 **Toutes les preuves exécutées sont vertes.**

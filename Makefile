@@ -118,11 +118,13 @@ $(BUILD)/wasm/%.wasm: modules/%.c modules/imports.h
 runtime: $(RUN_BIN)
 
 $(RUN_BIN): target/eclat_run.c runtime/eclat_runtime.c runtime/eclat_transport_local.c \
-            platform/posix/eclat_platform_posix.c $(LIB) $(WAMR_LIB)
+            platform/posix/eclat_platform_posix.c platform/posix/eclat_abilities_posix.c \
+            $(LIB) $(WAMR_LIB)
 	@mkdir -p $(dir $@)
 	@test -f "$(WAMR_LIB)" || { echo "libiwasm.a absente : lance « make deps »"; exit 1; }
 	$(CC) $(RUNTIME_CFLAGS) target/eclat_run.c runtime/eclat_runtime.c \
 	  runtime/eclat_transport_local.c platform/posix/eclat_platform_posix.c \
+	  platform/posix/eclat_abilities_posix.c \
 	  $(LIB) $(WAMR_LIB) -lpthread -lm -o $@
 
 # Intégration : ECL-04 (exécution), ECL-05 (refus), ECL-06 (budget CPU), ECL-07 (empreinte).

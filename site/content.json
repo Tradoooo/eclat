@@ -13,7 +13,7 @@
     "pitch_en": "\"WAMR brings the sandbox; Éclat brings the capability boundary. Every module access becomes a synchronous message to a broker — a separate process — that alone decides, against a deny-by-default policy.\""
   },
   "stats": [
-    {"v": "12", "l": "preuves archivées (make preuves)", "l_en": "archived proofs (make preuves)"},
+    {"v": "13", "l": "preuves archivées (make preuves)", "l_en": "archived proofs (make preuves)"},
     {"v": "198", "l": "vérifications C11, ASan/UBSan clean", "l_en": "C11 assertions, ASan/UBSan clean"},
     {"v": "131", "l": "tests Python (jumeau indépendant)", "l_en": "Python tests (independent twin)"},
     {"v": "10 000", "l": "décisions différentielles C ↔ Python", "l_en": "differential C ↔ Python decisions"},
@@ -24,6 +24,7 @@
   "layers": [
     {"t_fr": "Bac à sable WebAssembly", "d_fr": "mémoire linéaire bornée, pas d'appel système direct.", "t_en": "WebAssembly sandbox", "d_en": "bounded linear memory, no direct system call."},
     {"t_fr": "Processus QNX sans abilities", "d_fr": "un processus root qui abandonne ses abilities perd aussitôt fork(), mmap exécutable et l’accès aux canaux.", "t_en": "QNX process without abilities", "d_en": "a root process that drops its abilities immediately loses fork(), executable mmap and channel access."},
+    {"t_fr": "Retrait ciblé d'abilities", "d_fr": "le runtime lâche les privilèges dont il n'a pas besoin : le W+X est refusé, et charger le module reste possible.", "t_en": "Targeted ability removal", "d_en": "the runtime gives up the privileges it does not need: W+X is refused, and loading a module stays possible."},
     {"t_fr": "Politique de sécurité noyau", "d_fr": "une politique secpol : le runtime joint le courtier et se voit refuser tout autre canal par le noyau.", "t_en": "Kernel security policy", "d_en": "a secpol policy: the runtime reaches the broker and is refused every other channel by the kernel."}
   ],
   "mechanisms": [

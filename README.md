@@ -96,6 +96,10 @@ elle se rejoue par `tools/demo-secpol-on-qnx.sh x86_64`, et le détail est dans
 - **Couche abilities** : un processus root qui abandonne ses abilities
   (`procmgr_ability(DENY|LOCK|EOL)`) perd aussitôt `fork()`, `mmap(PROT_WRITE|PROT_EXEC)` et
   l'accès aux canaux. Le verrouillage empêche la reprise.
+- **Couche abilities *ciblée*** : le runtime retire de lui-même une liste courte et justifiée
+  d'abilities (`platform/qnx/eclat_abilities_qnx.c`) — celles dont il n'a pas besoin. Mesuré sur
+  cible : le W+X est refusé, et `fork()`, la lecture du fichier et l'accès au canal du courtier
+  restent accordés. C'est ce qui rend le retrait compatible avec le chargement d'un module.
 - **Ce que ces couches ne font pas**, dit sans survente : `secpol` restreint les canaux et les
   abilities *privilégiées* — `fork()` reste accordé sous le type `eclat_runtime`, c'est
   mesuré. Le retrait d'abilities retire tout, y compris ce dont le runtime a besoin pour
@@ -106,8 +110,6 @@ elle se rejoue par `tools/demo-secpol-on-qnx.sh x86_64`, et le détail est dans
 - [ ] Publier le courtier sous `/dev/cap` avec `resmgr_attach()` (aujourd'hui c'est le nom
       « cap » : `name_attach()` refuse les chemins avec des « / »), puis faire passer les imports
       du module par le courtier au lieu de l'appel de fonction.
-- [ ] Retrait **ciblé** d'abilities dans `eclat-run` (some abilities, pas toutes) — la version
-      « tout abandonner » est prouvée mais incompatible avec le chargement d'un module.
 - [ ] Embarquer la politique `secpol` dans l'image de démonstration principale et typer ses
       services.
 - [ ] Banc de latence **sur cible** avec la boucle à 1 kHz (ECL-12, ECL-13).

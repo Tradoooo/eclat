@@ -46,6 +46,14 @@ echo "--- [7] COUCHE 2 : un processus root ordinaire qui abandonne TOUTES ses ab
 /proc/boot/eclat-sonde abilities
 echo ""
 
+echo "--- [8] COUCHE 3 : le retrait CIBLE, dans le type du runtime (eclat_runtime) ---"
+on -T eclat_runtime /proc/boot/eclat-sonde ciblees
+echo ""
+
+echo "--- [9] COUCHE 3 : le meme retrait, hors type (processus root ordinaire) ---"
+/proc/boot/eclat-sonde ciblees
+echo ""
+
 echo "================================================================"
 echo " fin du scenario"
 echo "================================================================"

@@ -9,6 +9,11 @@
 #
 # Prérequis : SDP QNX 8.0 (qcc, mkifs, secpolcompile) et un qemu-system-x86_64.
 #
+# QEMU_REMOTE=<hôte> : la machine de construction n'a pas forcément de QEMU fonctionnel (le
+# r630 n'a pas de BIOS seabios), mais la construction de l'image et son lancement n'ont pas
+# besoin d'être sur la même machine. Dans ce cas, l'image est copiée sur l'hôte distant, la VM
+# y est lancée, et la console série revient. La preuve reste UNE commande.
+#
 # Usage : tools/demo-secpol-on-qnx.sh [x86_64]
 set -euo pipefail
 
@@ -29,8 +34,11 @@ command -v secpolcompile >/dev/null || {
 # Le lanceur QEMU peut être désigné explicitement (QEMU=...) : la construction de l'image et
 # son lancement n'ont pas besoin d'être sur la même machine, ni le même QEMU.
 QEMU="${QEMU:-qemu-system-x86_64}"
-command -v "$QEMU" >/dev/null || {
-  echo "KO : $QEMU absent (QEMU=/chemin/vers/qemu-system-x86_64 pour le désigner)" >&2; exit 2; }
+DISTANT="${QEMU_REMOTE:-}"
+if [ -z "$DISTANT" ]; then
+  command -v "$QEMU" >/dev/null || {
+    echo "KO : $QEMU absent (QEMU=/chemin/vers/qemu-system-x86_64 pour le désigner)" >&2; exit 2; }
+fi
 
 mkdir -p "$IMG" "$OUT"
 
@@ -59,8 +67,11 @@ done
   "${CORE_OBJS[@]}" broker/eclat_broker.c -lsocket -lm -o "$IMG/eclat-broker"
 "$QNX_HOST/usr/bin/qcc" -Vgcc_ntox86_64 "${CFLAGS_QNX[@]}" \
   "${CORE_OBJS[@]}" broker/eclat_client.c -lsocket -lm -o "$IMG/eclat-client"
+# La sonde mesure le retrait CIBLÉ : elle utilise la MÊME couche que le runtime
+# (platform/qnx/eclat_abilities_qnx.c), pas une copie — la mesure porte donc sur le code
+# qui tournera dans eclat-run.
 "$QNX_HOST/usr/bin/qcc" -Vgcc_ntox86_64 "${CFLAGS_QNX[@]}" \
-  broker/sonde.c -lsocket -lm -o "$IMG/eclat-sonde"
+  broker/sonde.c platform/qnx/eclat_abilities_qnx.c -lsocket -lm -o "$IMG/eclat-sonde"
 echo "   4 binaires produits"
 
 echo "== 3/4 construction de l'image IFS (mkifs) =="
@@ -73,8 +84,18 @@ echo "== 4/4 démarrage de la cible et capture de la console série =="
 CONSOLE="$(mktemp)"
 # --cpu max est obligatoire : qemu64 ne démarre pas un invité QNX 8.0.
 # -serial file : la console série est la preuve, brute et datée.
-timeout 120 "$QEMU" -cpu max -smp 2 -m 1024 -kernel "$IMG/ifs.bin" \
-  -display none -serial "file:$CONSOLE" >/dev/null 2>&1 || true
+if [ -n "$DISTANT" ]; then
+  # La VM tourne sur une autre machine (QEMU + BIOS y sont disponibles) ; la console revient.
+  scp -q "$IMG/ifs.bin" "$DISTANT:/tmp/eclat-secpol-ifs.bin"
+  ssh -o BatchMode=yes "$DISTANT" \
+    "timeout 120 $QEMU -cpu max -smp 2 -m 1024 -kernel /tmp/eclat-secpol-ifs.bin \
+       -display none -serial file:/tmp/eclat-secpol-console.txt >/dev/null 2>&1 || true; \
+     cat /tmp/eclat-secpol-console.txt" > "$CONSOLE" 2>/dev/null || true
+  ssh -o BatchMode=yes "$DISTANT" "rm -f /tmp/eclat-secpol-ifs.bin /tmp/eclat-secpol-console.txt"
+else
+  timeout 120 "$QEMU" -cpu max -smp 2 -m 1024 -kernel "$IMG/ifs.bin" \
+    -display none -serial "file:$CONSOLE" >/dev/null 2>&1 || true
+fi
 
 if [ ! -s "$CONSOLE" ]; then
   echo "KO : console série vide — l'invité n'a pas démarré" >&2
@@ -91,6 +112,16 @@ if grep -q "name_open(intrus    ) : REFUSÉ" "$SORTIE" &&
   echo "   VERDICT : le runtime joint le courtier et se voit refuser le temoin -> ECL-14 démontré"
 else
   echo "   VERDICT : la preuve attendue n'est PAS dans la console — voir $SORTIE" >&2
+  exit 1
+fi
+
+# Couche 3 : le retrait CIBLÉ doit retirer le W+X tout en laissant ce que le runtime
+# lui faut (lire un fichier, créer un processus, joindre le courtier). C'est ce qui
+# distingue la variante ciblée de l'abandon total.
+if grep -q "VERDICT-CIBLE : wx=REFUSEE fork=ACCORDE lecture=ACCORDEE" "$SORTIE"; then
+  echo "   VERDICT : le retrait ciblé retire le W+X et garde fork + lecture + canal -> ECL-14 couche 3"
+else
+  echo "   VERDICT : le retrait ciblé n'est PAS dans la console — voir $SORTIE" >&2
   exit 1
 fi
 echo "   preuve enregistrée : $SORTIE"

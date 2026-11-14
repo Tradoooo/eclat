@@ -40,3 +40,19 @@ allow eclat_intrus self:ability {
 # UNE seule autorisation : se connecter au canal du courtier.
 # Rien d'autre — pas de canal public, pas d'attache, pas de nouveau processus.
 allow eclat_runtime eclat_broker : channel connect;
+
+# Le runtime retire lui-meme de ses abilities celles dont il n'a pas besoin (couche 3).
+# Pour qu'il PUISSE le faire, la politique doit les declarer « unlock » : sous un type,
+# les abilities sont par defaut verrouillees par la politique et procmgr_ability() est
+# accepte mais sans effet (mesure sur cible, 2026-11-14).
+allow eclat_runtime self:ability {
+    unlock
+    prot_write_and_exec
+    public_channel
+    interrupt
+    io
+    priority
+    trace
+    pathspace
+    aps_root
+};
