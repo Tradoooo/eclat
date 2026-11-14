@@ -18,7 +18,6 @@
 
 #include "eclat/cap_log.h"
 #include "eclat/cap_sha256.h"
-#include "eclat_abilities.h"
 #include "wasm_export.h"
 
 #define WASM_MODULE_NAME "env"
@@ -277,60 +276,6 @@ static int executer(eclat_ctx_t *c, wasm_exec_env_t env, eclat_run_result_t *out
     return ECLAT_RUN_OK;
 }
 
-/* --- Retrait ciblé des abilities (ECL-14, couche 3) -------------------------- */
-
-/* Retire au runtime les privilèges dont il n'a pas besoin, et journalise ce qui reste.
- *
- * Quand l'on a ce choix, on retire l'ability AVANT que le module ne soit chargé : c'est le
- * module non certifié qui tourne dans ce processus, pas le runtime qui le charge. Le runtime
- * garde ce dont il a besoin pour la suite — lire, se connecter au courtier, et (pour le
- * superviseur) créer un processus.
- *
- * La règle est MESURÉE, pas supposée : après le retrait, on tente une page inscriptible ET
- * exécutable. Si le noyau l'accorde encore, le retrait n'a pas été effectif et on refuse de
- * charger du code non certifié. Un refus du noyau sur une ability que le processus ne
- * détenait pas (typiquement sous une politique secpol, où le type retire déjà tout) n'est pas
- * un échec : c'est journalisé, pas bloquant.
- *
- * Sur POSIX il n'y a pas d'ability : la couche renvoie « rien à retirer » et le runtime
- * continue. */
-static int retirer_abilities_ciblees(const eclat_platform_t *plat, char *err, size_t errlen) {
-    size_t n = eclat_abilities_ciblees_count();
-    if (n == 0) {
-        return ECLAT_RUN_OK;
-    }
-    eclat_abilities_bilan_t bilan;
-    char detail[192];
-    (void)eclat_abilities_drop_runtime(&bilan, detail, sizeof(detail));
-    const eclat_ability_ciblee_t *liste = eclat_abilities_ciblees();
-    for (size_t i = 0; i < n; i++) {
-        char ligne[256];
-        int k = snprintf(ligne, sizeof(ligne), "abilities retirée : %s — %s", liste[i].nom,
-                         liste[i].raison);
-        if (k > 0 && plat != NULL && plat->emit != NULL) {
-            plat->emit(ECLAT_PLAT_LOG_INFO, ligne, (size_t)k);
-        }
-    }
-    if (bilan.refusees > 0) {
-        char ligne[256];
-        int k = snprintf(ligne, sizeof(ligne),
-                         "abilities refusées par le noyau : %zu (première : %s, errno %d)",
-                         bilan.refusees, bilan.premier_refus ? bilan.premier_refus : "?",
-                         bilan.premier_errno);
-        if (k > 0 && plat != NULL && plat->emit != NULL) {
-            plat->emit(ECLAT_PLAT_LOG_WARN, ligne, (size_t)k);
-        }
-    }
-    /* Le seul test qui compte : le privilège dangereux est-il encore accessible ? */
-    if (eclat_abilities_wx_encore_possible()) {
-        snprintf(err, errlen,
-                 "le retrait des abilities n'a pas pris : une page inscriptible ET exécutable "
-                 "reste accessible — aucun module n'est chargé");
-        return ECLAT_RUN_ERR_RUNTIME;
-    }
-    return ECLAT_RUN_OK;
-}
-
 int eclat_runtime_run(const uint8_t *wasm, size_t len, const eclat_policy_t *policy,
                       const eclat_transport_t *transport, const eclat_platform_t *plat,
                       eclat_run_result_t *out, char *err, size_t errlen) {
@@ -362,13 +307,7 @@ int eclat_runtime_run(const uint8_t *wasm, size_t len, const eclat_policy_t *pol
     if (rc == ECLAT_RUN_OK) {
         wasm_module_t module = NULL;
         wasm_exec_env_t env = NULL;
-        /* Le retrait des abilities précède le CHARGEMENT du module : c'est à ce moment-là
-         * qu'il faut pouvoir dire « le module a été chargé sans les privilèges inutiles ».
-         * Si le retrait n'a pas pris, on ne charge rien du tout (voir le gate plus bas). */
-        rc = retirer_abilities_ciblees(plat, err, errlen);
-        if (rc == ECLAT_RUN_OK) {
-            rc = charger(&ctx, wasm, (uint32_t)len, &module, &env, err, errlen);
-        }
+        rc = charger(&ctx, wasm, (uint32_t)len, &module, &env, err, errlen);
         if (rc == ECLAT_RUN_OK) {
             rc = executer(&ctx, env, out, err, errlen);
         }
