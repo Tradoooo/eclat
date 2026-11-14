@@ -54,7 +54,7 @@
   <h2>Le projet</h2>
   <p class="pitch">« WAMR apporte le bac à sable ; Éclat apporte la frontière de capacités. Chaque accès du module devient un message synchrone vers un courtier — un autre processus — qui décide, seul, selon une politique déclarative à refus par défaut. »</p>
   <div class="stats">
-<div class="stat"><b>12</b><span>preuves archivées (make preuves)</span></div>
+<div class="stat"><b>13</b><span>preuves archivées (make preuves)</span></div>
 <div class="stat"><b>198</b><span>vérifications C11, ASan/UBSan clean</span></div>
 <div class="stat"><b>131</b><span>tests Python (jumeau indépendant)</span></div>
 <div class="stat"><b>10 000</b><span>décisions différentielles C ↔ Python</span></div>
@@ -69,6 +69,7 @@
       <ul>
 <li><b>Bac à sable WebAssembly</b> — mémoire linéaire bornée, pas d&#x27;appel système direct.</li>
 <li><b>Processus QNX sans abilities</b> — un processus root qui abandonne ses abilities perd aussitôt fork(), mmap exécutable et l’accès aux canaux.</li>
+<li><b>Retrait ciblé d&#x27;abilities</b> — le runtime lâche les privilèges dont il n&#x27;a pas besoin : le W+X est refusé, et charger le module reste possible.</li>
 <li><b>Politique de sécurité noyau</b> — une politique secpol : le runtime joint le courtier et se voit refuser tout autre canal par le noyau.</li>
 </ul>
     </div>
@@ -129,7 +130,8 @@
 <tr><td>courtier sur /cap (MsgSend/MsgReply)</td><td><a href="preuves/2026-11-12-courtier.txt"><code>docs/preuves/qnx800/2026-11-12-courtier.txt</code></a></td><td class="verdict">vert</td></tr>
 <tr><td>imports du module via le courtier (MsgSend/MsgReply)</td><td><a href="preuves/2026-11-12-module-via-courtier.txt"><code>docs/preuves/qnx800/2026-11-12-module-via-courtier.txt</code></a></td><td class="verdict">vert</td></tr>
 <tr><td>boucle 1 kHz (vivante pendant la mise à mort)</td><td><a href="preuves/2026-11-12-boucle-1khz.txt"><code>docs/preuves/qnx800/2026-11-12-boucle-1khz.txt</code></a></td><td class="verdict">vert</td></tr>
-<tr><td>ECL-14 : secpol (runtime joint le courtier, refuse ailleurs) + abilities</td><td><a href="preuves/2026-11-13-secpol-ecl14.txt"><code>docs/preuves/qnx800/2026-11-13-secpol-ecl14.txt</code></a></td><td class="verdict">vert</td></tr></tbody>
+<tr><td>ECL-14 : secpol (runtime joint le courtier, refuse ailleurs) + abilities</td><td><a href="preuves/2026-11-13-secpol-ecl14.txt"><code>docs/preuves/qnx800/2026-11-13-secpol-ecl14.txt</code></a></td><td class="verdict">vert</td></tr>
+<tr><td>ECL-14 couche 3 : retrait ciblé d&#x27;abilities (W+X refusé, fork/lecture/canal conservés)</td><td><a href="preuves/2026-11-14-secpol-ecl14.txt"><code>docs/preuves/qnx800/2026-11-14-secpol-ecl14.txt</code></a></td><td class="verdict">vert</td></tr></tbody>
     </table>
   </div>
   <div class="panel">

@@ -1,0 +1,170 @@
+
+non UEFI or UEFI+CSM boot
+ACPI table not found (0x4746434d)
+System behaves poorly without PCID support.
+overriding mask for controller 2, vector_base 0
+ECLAT ECL-14 - politique de securite QNX 8.0
+
+================================================================
+ ECL-14 - une politique de securite QNX interdit au runtime
+          tout acces hors du courtier
+================================================================
+
+--- [1] la politique source, telle qu'elle a ete compilee ---
+# SPDX-License-Identifier: Apache-2.0
+# Éclat — politique de sécurité QNX 8.0 (exigence ECL-14).
+#
+# Ce fichier est compilé par `secpolcompile` (SDP QNX 8.0) en `secpol.bin`, embarqué dans
+# l'image de la cible à /proc/boot/secpol.bin, puis poussé dans procnto au démarrage par
+# `secpolpush`. À partir de là, le noyau applique ces règles : un processus n'a que ce que
+# son type lui accorde, et le refus est par défaut.
+#
+# Ce qui est démontré : le processus du RUNTIME (celui qui héberge le module WebAssembly non
+# certifié) ne peut joindre QUE le canal du courtier. Tout autre canal lui est refusé par le
+# noyau (EPERM), alors même qu'il tourne en root.
+
+# Le courtier de capacités : il décide. C'est le seul processus joignable par le runtime.
+type eclat_broker;
+
+# Le runtime : il exécute le module tierce. Il ne doit rien pouvoir joindre d'autre.
+type eclat_runtime;
+
+# Un serveur témoin, distinct du courtier : c'est la cible de refus. Il prouve que le refus
+# du runtime n'est pas « ce nom n'existe pas » mais bien « la politique l'interdit ».
+type eclat_intrus;
+
+# --- Le courtier ------------------------------------------------------------
+# Il publie son nom dans l'espace de noms (/dev/name/local/cap) et son chemin /dev/cap.
+allow_attach eclat_broker /dev/name/local/cap;
+allow_attach eclat_broker /dev/cap;
+allow eclat_broker self:ability {
+    public_channel
+    pathspace
+};
+
+# --- Le serveur témoin ------------------------------------------------------
+# Service normal : il publie son nom et rien d'autre.
+allow_attach eclat_intrus /dev/name/local/intrus;
+allow eclat_intrus self:ability {
+    public_channel
+};
+
+# --- Le runtime -------------------------------------------------------------
+# UNE seule autorisation : se connecter au canal du courtier.
+# Rien d'autre — pas de canal public, pas d'attache, pas de nouveau processus.
+allow eclat_runtime eclat_broker : channel connect;
+
+# Le runtime retire lui-meme de ses abilities celles dont il n'a pas besoin (couche 3).
+# Pour qu'il PUISSE le faire, la politique doit les declarer « unlock » : sous un type,
+# les abilities sont par defaut verrouillees par la politique et procmgr_ability() est
+# accepte mais sans effet (mesure sur cible, 2026-11-14).
+allow eclat_runtime self:ability {
+    unlock
+    prot_write_and_exec
+    public_channel
+    interrupt
+    io
+    priority
+    trace
+    pathspace
+    aps_root
+};
+--- [2] poussee dans procnto ---
+secpolpush rc=0
+
+--- [3] le courtier : type eclat_broker, publie son canal ---
+courtier: politique « eclat-broker-demo » chargée (2 règles allow, 0 règles deny)
+courtier: à l'écoute sur cap (canal 1)
+courtier: publication de /dev/cap : retour -1 (errno 0) — repli sur le nom cap
+
+--- [4] le serveur temoin : type eclat_intrus, publie un AUTRE canal ---
+sonde: serveur témoin « intrus » à l'écoute (chid 1)
+
+--- [5] le runtime : type eclat_runtime, il tente les deux canaux + fork ---
+  name_open(cap       ) : OUVERT
+  name_open(intrus    ) : REFUSÉ (errno=1 Operation not permitted)
+  mmap(PROT_WRITE|EXEC) : ACCORDÉ
+  fork()               : ACCORDÉ (enfant 65545)
+
+--- [6] le client du courtier, meme type de runtime ---
+client: connecté à cap
+— vivacité —
+  ping                               -> CAP_OK             (payload=0, seq=1)
+— demandes autorisées —
+  cap_read_sensor(id=1) t0           -> CAP_OK             (payload=3838, seq=2)
+  cap_read_sensor(id=1) t0+250ms     -> CAP_OK             (payload=2420, seq=3)
+  cap_read_sensor(id=1) t0+500ms     -> CAP_OK             (payload=2195, seq=4)
+  cap_read_sensor(id=1) t0+750ms     -> CAP_OK             (payload=3619, seq=5)
+— demandes refusées —
+  cap_net_send(chan=9)               -> CAP_DENIED_POLICY  (payload=0, seq=6)
+  cap_write_actuator(99999)          -> CAP_DENIED_RANGE   (payload=0, seq=7)
+  cap_read_sensor(id=42)             -> CAP_DENIED_RANGE   (payload=0, seq=8)
+  cap_kv_put                         -> CAP_DENIED_POLICY  (payload=0, seq=9)
+client: terminé
+
+--- [7] COUCHE 2 : un processus root ordinaire qui abandonne TOUTES ses abilities ---
+— AVANT l'abandon des abilities (processus root ordinaire) —
+  name_open(cap       ) : OUVERT
+  name_attach()        : REFUSÉ (errno=13 Permission denied)
+  mmap(PROT_WRITE|EXEC) : ACCORDÉ
+  fork()               : ACCORDÉ (enfant 90121)
+  lecture /proc/boot/pol-broker.toml : ACCORDÉE (64 octets)
+  procmgr_ability(DENY|LOCK|EOL) : APPLIQUÉ
+— APRÈS l'abandon des abilities —
+  name_open(cap       ) : REFUSÉ (errno=1 Operation not permitted)
+  name_attach()        : REFUSÉ (errno=22 Invalid argument)
+  mmap(PROT_WRITE|EXEC) : REFUSÉ (errno=1 Operation not permitted)
+  fork()               : REFUSÉ (errno=1 Operation not permitted)
+  lecture /proc/boot/pol-broker.toml : ACCORDÉE (64 octets)
+
+--- [8] COUCHE 3 : le retrait CIBLE, dans le type du runtime (eclat_runtime) ---
+— AVANT le retrait ciblé —
+  name_open(cap       ) : OUVERT
+  name_attach()        : REFUSÉ (errno=13 Permission denied)
+  mmap(PROT_WRITE|EXEC) : ACCORDÉ
+  fork()               : ACCORDÉ (enfant 110601)
+  lecture /proc/boot/pol-broker.toml : ACCORDÉE (64 octets)
+    prot_write_and_exec    : RETIRÉE
+    public_channel         : RETIRÉE
+    interrupt              : RETIRÉE
+    io                     : RETIRÉE
+    priority               : RETIRÉE
+    trace                  : RETIRÉE
+    pathspace              : RETIRÉE
+    aps_root               : RETIRÉE
+  retrait ciblé : 8 visées, 8 retirées, 0 refusées
+— APRÈS le retrait ciblé —
+  name_open(cap       ) : OUVERT
+  name_attach()        : REFUSÉ (errno=22 Invalid argument)
+  mmap(PROT_WRITE|EXEC) : REFUSÉ (errno=1 Operation not permitted)
+  fork()               : ACCORDÉ (enfant 110602)
+  lecture /proc/boot/pol-broker.toml : ACCORDÉE (64 octets)
+  VERDICT-CIBLE : wx=REFUSEE fork=ACCORDE lecture=ACCORDEE
+
+--- [9] COUCHE 3 : le meme retrait, hors type (processus root ordinaire) ---
+— AVANT le retrait ciblé —
+  name_open(cap       ) : OUVERT
+  name_attach()        : REFUSÉ (errno=13 Permission denied)
+  mmap(PROT_WRITE|EXEC) : ACCORDÉ
+  fork()               : ACCORDÉ (enfant 126985)
+  lecture /proc/boot/pol-broker.toml : ACCORDÉE (64 octets)
+    prot_write_and_exec    : RETIRÉE
+    public_channel         : RETIRÉE
+    interrupt              : RETIRÉE
+    io                     : RETIRÉE
+    priority               : RETIRÉE
+    trace                  : RETIRÉE
+    pathspace              : RETIRÉE
+    aps_root               : RETIRÉE
+  retrait ciblé : 8 visées, 8 retirées, 0 refusées
+— APRÈS le retrait ciblé —
+  name_open(cap       ) : OUVERT
+  name_attach()        : REFUSÉ (errno=22 Invalid argument)
+  mmap(PROT_WRITE|EXEC) : REFUSÉ (errno=1 Operation not permitted)
+  fork()               : ACCORDÉ (enfant 126986)
+  lecture /proc/boot/pol-broker.toml : ACCORDÉE (64 octets)
+  VERDICT-CIBLE : wx=REFUSEE fork=ACCORDE lecture=ACCORDEE
+
+================================================================
+ fin du scenario
+================================================================

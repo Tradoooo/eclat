@@ -71,6 +71,77 @@ mesure la différence avant/après (même archive) :
 Le verrouillage (`PROCMGR_AOP_LOCK`) empêche la reprise : sans lui, un processus qui a lâché
 ses privileges pourrait les réclamer à nouveau.
 
+## Couche 3 — le retrait *ciblé* : ce que le runtime garde, ce qu'il lâche
+
+L'abandon total est incompatible avec un runtime qui charge un module : il perd `fork()` (donc
+le superviseur qui tue un module hors budget, ECL-06) et la lecture du fichier `.wasm`. La voie
+praticable est un retrait **ciblé** : une liste courte d'abilities, chacune justifiée.
+
+La liste vit dans `platform/qnx/eclat_abilities_qnx.c` (une seule implémentation, avec
+`platform/posix/` pour l'hôte) et le runtime l'applique **avant** de charger le module — c'est le
+code non certifié qui tourne dans ce processus, pas le runtime qui le charge.
+
+| Ability retirée | Pourquoi le runtime s'en passe |
+|---|---|
+| `prot_write_and_exec` | une page inscriptible **et** exécutable : le module est interprété, pas du code machine |
+| `public_channel` | le runtime se *connecte* au courtier, il ne publie aucun canal |
+| `interrupt` | piloter les interruptions matérielles |
+| `io` | les ports d'entrée/sortie du matériel |
+| `priority` | le module ne réordonne pas le système |
+| `trace` | espionner les autres processus |
+| `pathspace` | créer des chemins : le runtime publie par le courtier |
+| `aps_root` | modifier le partitionnement adaptatif |
+
+Ce qui reste, et pourquoi : `fork()` (le superviseur), la lecture du fichier (le `.wasm` et son
+empreinte), et la connexion au courtier (chaque import). **Mesuré sur cible**, dans la console
+série archivée :
+
+```
+— AVANT le retrait ciblé —
+  name_open(cap       ) : OUVERT
+  mmap(PROT_WRITE|EXEC) : ACCORDÉ
+  fork()               : ACCORDÉ (enfant 110601)
+  lecture /proc/boot/pol-broker.toml : ACCORDÉE (64 octets)
+  retrait ciblé : 8 visées, 8 retirées, 0 refusées
+— APRÈS le retrait ciblé —
+  name_open(cap       ) : OUVERT
+  name_attach()        : REFUSÉ (errno=22 Invalid argument)
+  mmap(PROT_WRITE|EXEC) : REFUSÉ (errno=1 Operation not permitted)
+  fork()               : ACCORDÉ (enfant 110602)
+  lecture /proc/boot/pol-broker.toml : ACCORDÉE (64 octets)
+  VERDICT-CIBLE : wx=REFUSEE fork=ACCORDE lecture=ACCORDEE
+```
+
+Le W+X est refusé, et tout ce dont le runtime a besoin tient. C'est exactement la différence
+avec l'abandon total.
+
+### La règle qui manquait : `unlock` dans la politique
+
+Mesuré sur la cible le 2026-11-14 : **sous un type `secpol`, `procmgr_ability()` est accepté
+mais sans effet.** La politique gouverne les abilities du processus ; sans `unlock`, une ability
+accordée par la politique est verrouillée pour le processus. La conséquence est que le retrait
+ciblé ne mordait que hors type — le runtime typé gardait son W+X.
+
+La correction est dans la politique (`docs/secpol/eclat.secpol`) : les abilities que le runtime
+doit pouvoir retirer lui-même sont déclarées `unlock`.
+
+```
+allow eclat_runtime self:ability {
+    unlock
+    prot_write_and_exec
+    public_channel
+    interrupt
+    io
+    priority
+    trace
+    pathspace
+    aps_root
+};
+```
+
+Après cette correction, la même mesure donne `wx=REFUSEE fork=ACCORDE lecture=ACCORDEE` **sous
+le type `eclat_runtime`** — les deux lignes `[8]` et `[9]` de l'archive.
+
 ## Ce que ces deux couches font — et ne font pas
 
 Il faut être précis, parce que c'est là que les projets de sécurité se trompent :
@@ -92,21 +163,15 @@ confondre en une phrase.
 
 ## Ce qui reste hors de portée, et pourquoi
 
-1. **Le retrait d'abilities du *runtime* lui-même n'est pas fait, et ne peut pas l'être tel
-   quel.** Le runtime charge un module depuis le disque ; `procmgr_ability(DENY|EOL)` le
-   priverait de ce dont il a besoin. La voie praticable est un retrait **ciblé** — deny
-   quelques abilities, pas toutes — qui reste à faire et à prouver.
-2. **Les chiffres de gigue sous charge restent ceux de l'émulation.** La gigue mesurée sous
+1. **Les chiffres de gigue sous charge restent ceux de l'émulation.** La gigue mesurée sous
    QEMU est dominée par l'absence de timer matériel et d'isolation de vCPU : ce qui est prouvé,
    c'est la vivacité de la boucle, pas sa performance temps réel (ECL-12/13).
-3. **La politique n'est pas encore embarquée dans l'image de production.** La preuve utilise une
+2. **La politique n'est pas encore embarquée dans l'image de production.** La preuve utilise une
    IFS dédiée (`tools/image-secpol.buildfile`) avec la politique à `/proc/boot/secpol.bin` ;
    l'image de démonstration principale n'a pas de politique, faute d'infrastructure pour
    typer tous ses services sans les énumérer un par un.
 
 ## Les étapes exactes pour aller plus loin
 
-1. Retrait ciblé d'abilities dans `eclat-run` : `procmgr_ability(0, PROCMGR_ADN_ROOT |
-   PROCMGR_AOP_DENY | PROCMGR_AID_FORK, PROCMGR_AID_EOL)` et voisins, puis mesurer.
-2. Embarquer la politique dans l'image de démonstration principale et typer ses services.
-3. Chiffrer la gigue sur matériel réel (ECL-12/13).
+1. Embarquer la politique dans l'image de démonstration principale et typer ses services.
+2. Chiffrer la gigue sur matériel réel (ECL-12/13).
