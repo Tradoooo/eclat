@@ -28,6 +28,7 @@
 #include <unistd.h>
 
 #include "eclat/cap_policy.h"
+#include "eclat_abilities.h"
 #include "eclat_platform.h"
 #include "eclat_runtime.h"
 #include "eclat_transport.h"
@@ -143,6 +144,46 @@ static int superviser(const uint8_t *wasm, size_t wasm_len, const eclat_policy_t
     return 0;
 }
 
+/* Retire les abilities dont le runtime n'a pas besoin, et vérifie que le retrait a pris.
+ *
+ * C'est ici, dans eclat-run, que ça se passe : ce processus héberge le module non certifié, et
+ * c'est lui qui doit se priver de ses privilèges inutiles AVANT de lire et de charger le
+ * module. Le retrait est CIBLE : on garde ce dont le runtime a besoin (lire le fichier du
+ * module, se connecter au courtier, créer le processus enfant du superviseur).
+ *
+ * Sur QNX, on vérifie après coup que la page inscriptible ET exécutable est bien refusée : si
+ * elle ne l'est pas, le retrait n'a pas pris, et on ne charge AUCUN module. Sur POSIX il n'y a
+ * pas d'ability : la couche renvoie « rien à retirer » et le chargement continue.
+ *
+ * Renvoie 0 si tout va bien, 1 sinon (le motif est écrit sur stderr). */
+static int retirer_abilities_inutiles(void) {
+    size_t n = eclat_abilities_ciblees_count();
+    if (n == 0) {
+        return 0;
+    }
+    eclat_abilities_bilan_t bilan;
+    char detail[192];
+    (void)eclat_abilities_drop_runtime(&bilan, detail, sizeof(detail));
+    const eclat_ability_ciblee_t *liste = eclat_abilities_ciblees();
+    for (size_t i = 0; i < n; i++) {
+        printf("abilities retirée : %s — %s\n", liste[i].nom, liste[i].raison);
+    }
+    if (bilan.refusees > 0) {
+        printf("abilities refusées par le noyau : %zu (première : %s, errno %d)\n", bilan.refusees,
+               bilan.premier_refus ? bilan.premier_refus : "?", bilan.premier_errno);
+    }
+    fflush(stdout);
+    /* La seule question qui compte : le privilège dangereux est-il ENCORE accessible ? */
+    if (eclat_abilities_wx_encore_possible()) {
+        fprintf(stderr,
+                "eclat: le retrait des abilities n'a pas pris : une page inscriptible ET "
+                "exécutable reste accessible — aucun module n'est chargé\n");
+        return 1;
+    }
+    printf("vérification : la page inscriptible ET exécutable est refusée\n");
+    return 0;
+}
+
 static void usage(const char *prog) {
     fprintf(stderr, "Usage : %s <politique.toml> <module.wasm> [--broker <nom>]\n", prog);
     fprintf(stderr, "  --broker <nom>  les décisions sont prises par le courtier QNX « nom »,\n");
@@ -168,6 +209,13 @@ int main(int argc, char **argv) {
     }
     if (n_chemins != 2) {
         usage(argv[0]);
+        return 2;
+    }
+
+    /* Avant toute lecture : le processus se prive de ses privilèges inutiles. Ce qui vient
+     * après — lire le `.wasm`, le charger, l'exécuter, joindre le courtier — se fait donc avec
+     * le jeu d'abilities réduit, et c'est mesurable. */
+    if (retirer_abilities_inutiles() != 0) {
         return 2;
     }
 
